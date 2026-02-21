@@ -1,0 +1,23 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.18.4",
+    "argon2-cffi>=25.1.0",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.129.0",
+    "nats-py>=2.13.1",
+    "passlib>=1.7.4",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "python-jose>=3.5.0",
+    "python-multipart>=0.0.22",
+    "redis>=7.2.0",
+    "sqlalchemy>=2.0.46",
+    "uuid7>=0.1.0",
+    "uvicorn>=0.41.0",
+    "uvloop>=0.22.1",
+]
