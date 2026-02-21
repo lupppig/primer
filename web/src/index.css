@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+	--color-canvas: #0f1115;
+	--color-panel: #1a1d24;
+	--color-border: #2d3139;
+	--color-primary: #5048e5;
+	--color-primary-hover: #4338ca;
+	--color-accent: #3caff6;
+	--color-danger: #e60a15;
+	--color-text-main: #ffffff;
+	--color-text-muted: #9ca3af;
+	--font-sans: "Inter", system-ui, sans-serif;
+	--font-heading: "Space Grotesk", system-ui, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Force dark mode background globally */
+body {
+	@apply bg-[var(--color-canvas)] text-[var(--color-text-main)] font-sans antialiased overflow-hidden;
+}
+
+/* React Flow custom dark styles */
+.react-flow__background {
+	background-color: var(--color-canvas);
+}
+
+.react-flow__controls-button {
+	background-color: var(--color-panel) !important;
+	border-color: var(--color-border) !important;
+	color: var(--color-text-main) !important;
+	transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.react-flow__controls-button:hover {
+	background-color: #262a33 !important;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	@apply bg-[#374151] rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	@apply bg-[#4b5563];
+}
