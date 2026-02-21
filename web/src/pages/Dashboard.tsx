@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useDesignStore } from '../store/useDesignStore';
+import { MiniCanvasPreview } from '../components/MiniCanvasPreview';
 
 export default function Dashboard() {
 	const navigate = useNavigate();
@@ -144,8 +145,14 @@ export default function Dashboard() {
 												</Button>
 											</div>
 											<div className="h-32 bg-[#2d3139] relative overflow-hidden flex items-center justify-center">
-												<LayoutTemplate className="w-8 h-8 text-[var(--color-text-muted)]/50 group-hover:scale-110 transition-transform duration-500" />
-												<div className="absolute inset-0 bg-gradient-to-br from-[#2d3139] to-[#1a1d24] group-hover:scale-105 transition-transform duration-500 opacity-50" />
+												{design.nodes && design.nodes.length > 0 ? (
+													<div className="w-[120%] h-[120%] origin-center pointer-events-none opacity-80 group-hover:scale-105 transition-transform duration-500">
+														<MiniCanvasPreview nodes={design.nodes} edges={design.edges || []} />
+													</div>
+												) : (
+													<LayoutTemplate className="w-8 h-8 text-[var(--color-text-muted)]/50 group-hover:scale-110 transition-transform duration-500" />
+												)}
+												<div className="absolute inset-0 bg-gradient-to-br from-[#2d3139] to-[#1a1d24] group-hover:scale-105 transition-transform duration-500 opacity-20" />
 											</div>
 											<CardHeader className="p-4">
 												<CardTitle className="text-[15px] truncate pr-8">{design.name}</CardTitle>

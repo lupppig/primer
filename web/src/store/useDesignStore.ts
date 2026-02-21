@@ -5,14 +5,14 @@ export type DesignMeta = {
 	id: string;
 	name: string;
 	description: string | null;
+	nodes: any[];
+	edges: any[];
 	version: number;
 	updated_at: string;
 };
 
 // Represents the full payload loaded into the canvas
 export type DesignPayload = DesignMeta & {
-	nodes: any[];
-	edges: any[];
 	settings: Record<string, any>;
 };
 
