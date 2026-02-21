@@ -11,6 +11,7 @@ from app.core.redis import redis_client
 from app.core.nats import nats_client
 from app.auth.router import router as auth_router
 from app.canvas.router import router as canvas_router
+from app.simulation.router import router as simulation_router
 
 # Setup centralized logging config
 setup_logging()
@@ -43,6 +44,7 @@ setup_exception_handlers(app)
 # Include Routers
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(canvas_router, prefix=settings.API_V1_STR)
+app.include_router(simulation_router, prefix=settings.API_V1_STR)
 
 # Middlewares (Order matters)
 app.add_middleware(
