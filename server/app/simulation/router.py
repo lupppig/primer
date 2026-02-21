@@ -47,29 +47,49 @@ async def simulation_websocket(websocket: WebSocket):
             await websocket.close(code=1003)
             return
 
+        async def listen_for_updates():
+            nonlocal sim_input
+            try:
+                while True:
+                    new_data = await websocket.receive_text()
+                    try:
+                        new_payload = json.loads(new_data)
+                        sim_input = SimulationInput(**new_payload)
+                        logger.info("Simulation config updated via hot reload")
+                    except (json.JSONDecodeError, ValidationError) as e:
+                        logger.error(f"Failed to parse hot reload payload: {e}")
+            except WebSocketDisconnect:
+                pass
+            except Exception as e:
+                logger.error(f"Error in websocket listener: {e}")
+
+        listen_task = asyncio.create_task(listen_for_updates())
+
         # Start streaming simulation ticks
         current_tick = 0
-        while websocket.application_state == WebSocketState.CONNECTED:
-            try:
-                # Compute the next tick based on current state
-                # TODO (Phase 2): Apply specific time-series traffic patterns here
-                result = SimulationEngine.compute_tick(
-                    graph=sim_input.graph,
-                    incoming_rps=sim_input.incoming_rps, 
-                    current_time=current_tick
-                )
-                
-                await websocket.send_text(result.model_dump_json())
-                
-                current_tick += 1
-                
-                # Sleep to prevent blocking the event loop and simulate realtime progress (e.g. 1 tick = 1 second)
-                await asyncio.sleep(1.0)
-                
-            except ValueError as e:
-                 await websocket.send_json({"error": "Simulation Error", "details": str(e)})
-                 await asyncio.sleep(5)  # Pause on error before retrying or closing
-                 break
+        try:
+            while websocket.application_state == WebSocketState.CONNECTED:
+                try:
+                    # Compute the next tick based on current state (which can be hot reloaded)
+                    result = SimulationEngine.compute_tick(
+                        graph=sim_input.graph,
+                        incoming_rps=sim_input.incoming_rps, 
+                        current_time=current_tick
+                    )
+                    
+                    await websocket.send_text(result.model_dump_json())
+                    current_tick += 1
+                    
+                    # Sleep to prevent blocking the event loop and simulate realtime progress (e.g. 1 tick = 1 second)
+                    await asyncio.sleep(1.0)
+                    
+                except ValueError as e:
+                     logger.exception("Simulation Error Caught")
+                     await websocket.send_json({"error": "Simulation Error", "details": str(e)})
+                     await asyncio.sleep(5)  # Pause on error before retrying or closing
+                     break
+        finally:
+            listen_task.cancel()
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket Client disconnected: {websocket.client}")

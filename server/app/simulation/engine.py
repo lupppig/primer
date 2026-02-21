@@ -48,6 +48,13 @@ class SimulationEngine:
         Applies topological sort, calculates fan-out traffic, node utilizations, 
         and backpressure based on queue depths.
         """
+        if not graph.nodes:
+            return SimulationTickResult(
+                time=current_time,
+                nodes={},
+                graph_metrics=GraphMetrics(total_throughput=0.0, max_latency=0.0, bottleneck_nodes=[])
+            )
+
         sorted_nodes = SimulationEngine.topological_sort(graph)
         
         # State trackers for this tick
@@ -60,7 +67,7 @@ class SimulationEngine:
 
         # We assume the first nodes in the topological sort (in_degree 0) receive the initial RPS evenly.
         start_nodes = [node_id for node_id in sorted_nodes if not any(e.target == node_id for e in graph.edges)]
-        if not start_nodes:
+        if not start_nodes and graph.nodes:
             raise ValueError("Graph has no entry points (start nodes).")
             
         initial_rps_per_start_node = incoming_rps / len(start_nodes)
