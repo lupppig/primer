@@ -22,6 +22,7 @@ class NodeSchema(BaseModel):
     base_latency_ms: Optional[float] = 50.0
     replicas: Optional[int] = 1
     queue_size: Optional[int] = 0
+    rate_limit_rps: Optional[float] = None
 
 class EdgeSchema(BaseModel):
     id: str

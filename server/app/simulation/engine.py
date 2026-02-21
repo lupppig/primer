@@ -90,6 +90,10 @@ class SimulationEngine:
             # Bound effective RPS by physical capacity
             metrics.effective_rps = min(metrics.incoming_rps, total_capacity)
             
+            # Apply rate limiting if configured
+            if getattr(node, 'rate_limit_rps', None) is not None:
+                metrics.effective_rps = min(metrics.effective_rps, node.rate_limit_rps)
+            
             if metrics.utilization < 1.0:
                 metrics.latency = node.base_latency_ms / (1.0 - metrics.utilization)
                 metrics.bottleneck = False
