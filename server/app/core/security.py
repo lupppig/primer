@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 from jose import jwt
 from passlib.context import CryptContext
-from uuid7 import uuid7
+from uuid6 import uuid7
 import uuid
 
 from app.core.config import settings
@@ -20,7 +20,7 @@ def get_password_hash(password: str) -> str:
 
 def generate_uuid() -> uuid.UUID:
     """Generates a time-sortable UUIDv7."""
-    return uuid7()
+    return uuid.uuid7()
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
     """Creates a securely signed JWT access token."""
