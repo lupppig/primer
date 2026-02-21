@@ -9,6 +9,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useStore } from '../../store/useStore';
 import { useDesignStore } from '../../store/useDesignStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { Activity, Play, Settings, Save, MessageSquare, Loader2, Plus, Minus } from 'lucide-react';
 import { Button } from '../Common/Button';
 import { Input } from '../Common/Input';
@@ -37,6 +38,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 export default function Canvas() {
 	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool } = useStore();
 	const { currentDesign, saveDesign } = useDesignStore();
+	const { user, setAuthModalOpen } = useAuthStore();
 	const [isSaving, setIsSaving] = useState(false);
 	const [rfInstance, setRfInstance] = useState<any>(null);
 
@@ -190,7 +192,7 @@ export default function Canvas() {
 								<div className="flex items-center gap-2 bg-[var(--color-panel)] border border-[var(--color-border)] p-1.5 rounded-xl shadow-lg pointer-events-auto">
 									<Button variant="ghost" size="sm" className="h-8 gap-2">
 										<div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-										{currentDesign?.title || 'Untitled Design'}
+										{currentDesign?.name || 'Untitled Design'}
 									</Button>
 									<div className="w-px h-4 bg-[var(--color-border)]" />
 
@@ -261,8 +263,12 @@ export default function Canvas() {
 										size="sm"
 										variant="outline"
 										className="h-8 gap-2 border-[var(--color-border)]/50"
-										disabled={isSaving || !currentDesign}
+										disabled={isSaving}
 										onClick={async () => {
+											if (!user) {
+												setAuthModalOpen(true);
+												return;
+											}
 											if (currentDesign) {
 												setIsSaving(true);
 												try {
@@ -274,7 +280,7 @@ export default function Canvas() {
 										}}
 									>
 										{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-										Save
+										{!user ? 'Save to Cloud' : 'Save'}
 									</Button>
 								</div>
 							</div>

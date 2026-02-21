@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, model_validator
 from app.core.exceptions import ValidationException
@@ -64,6 +65,8 @@ class DesignResponse(DesignBase):
     id: uuid.UUID
     user_id: uuid.UUID
     version: int
+    created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True

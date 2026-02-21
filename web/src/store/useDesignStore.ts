@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 
 export type DesignMeta = {
 	id: string;
-	title: string;
+	name: string;
 	description: string | null;
 	version: number;
 	updated_at: string;
@@ -22,7 +22,7 @@ type DesignState = {
 	error: string | null;
 
 	fetchDesigns: () => Promise<void>;
-	createDesign: (title: string, description?: string) => Promise<string>;
+	createDesign: (name: string, description?: string) => Promise<string>;
 	loadDesign: (id: string) => Promise<void>;
 	saveDesign: (id: string, nodes: any[], edges: any[], version: number) => Promise<void>;
 	deleteDesign: (id: string) => Promise<void>;
@@ -44,11 +44,11 @@ export const useDesignStore = create<DesignState>((set) => ({
 		}
 	},
 
-	createDesign: async (title, description) => {
+	createDesign: async (name, description) => {
 		set({ isLoading: true, error: null });
 		try {
 			const response = await api.post('/canvas/design', {
-				title,
+				name,
 				description,
 				nodes: [],
 				edges: []

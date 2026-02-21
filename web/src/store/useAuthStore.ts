@@ -14,6 +14,11 @@ type AuthState = {
 	user: User | null;
 	isLoading: boolean;
 	error: string | null;
+	isAuthModalOpen: boolean;
+	authView: 'login' | 'signup';
+
+	setAuthModalOpen: (open: boolean) => void;
+	setAuthView: (view: 'login' | 'signup') => void;
 	login: (email: string, password: string) => Promise<void>;
 	register: (email: string, username: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
@@ -24,6 +29,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 	user: null,
 	isLoading: false,
 	error: null,
+	isAuthModalOpen: false,
+	authView: 'login',
+
+	setAuthModalOpen: (open) => set({ isAuthModalOpen: open }),
+	setAuthView: (view) => set({ authView: view }),
 
 	login: async (email, password) => {
 		set({ isLoading: true, error: null });

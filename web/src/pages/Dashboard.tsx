@@ -148,7 +148,7 @@ export default function Dashboard() {
 												<div className="absolute inset-0 bg-gradient-to-br from-[#2d3139] to-[#1a1d24] group-hover:scale-105 transition-transform duration-500 opacity-50" />
 											</div>
 											<CardHeader className="p-4">
-												<CardTitle className="text-[15px] truncate pr-8">{design.title}</CardTitle>
+												<CardTitle className="text-[15px] truncate pr-8">{design.name}</CardTitle>
 												<CardDescription>
 													{new Date(design.updated_at).toLocaleDateString()}
 												</CardDescription>
