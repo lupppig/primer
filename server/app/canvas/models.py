@@ -19,6 +19,7 @@ class Design(Base):
     # Stores the raw React Flow and parsed graph data securely
     nodes = Column(JSONB, nullable=False, default=list)
     edges = Column(JSONB, nullable=False, default=list)
+    settings = Column(JSONB, nullable=False, default=dict)
     
     # Optimistic Concurrency Control
     version = Column(Integer, nullable=False, default=1)

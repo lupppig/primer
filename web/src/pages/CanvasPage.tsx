@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import { useSearchParams } from 'react-router-dom';
 import Canvas from '../components/Canvas/Canvas';
@@ -19,17 +19,25 @@ export default function CanvasPage() {
 
 	const designId = searchParams.get('id');
 
+	const hasHydrated = useRef(false);
+
 	useEffect(() => {
 		if (designId) {
+			hasHydrated.current = false; // Reset hydration when switching designs
 			loadDesign(designId);
 		}
 	}, [designId, loadDesign]);
 
-	// When currentDesign populates, hydrate the canvas store
+	// When currentDesign populates, hydrate the canvas store ONCE to prevent interrupting node dragging
 	useEffect(() => {
-		if (currentDesign) {
-			setNodes(currentDesign.nodes || [])
-			setEdges(currentDesign.edges || [])
+		if (currentDesign && !hasHydrated.current) {
+			setNodes(currentDesign.nodes || []);
+			setEdges(currentDesign.edges || []);
+			const savedRps = currentDesign.settings?.targetRps;
+			if (typeof savedRps === 'number') {
+				useStore.getState().setTargetRps(savedRps);
+			}
+			hasHydrated.current = true;
 		}
 	}, [currentDesign, setNodes, setEdges]);
 

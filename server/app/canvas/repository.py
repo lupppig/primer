@@ -27,6 +27,7 @@ class DesignRepository:
             description=design_in.description,
             nodes=[node.model_dump() for node in design_in.nodes],
             edges=[edge.model_dump() for edge in design_in.edges],
+            settings=design_in.settings,
             version=1
         )
         self.session.add(db_design)
@@ -50,6 +51,7 @@ class DesignRepository:
         db_design.description = design_in.description
         db_design.nodes = [node.model_dump() for node in design_in.nodes]
         db_design.edges = [edge.model_dump() for edge in design_in.edges]
+        db_design.settings = design_in.settings
         db_design.version += 1
         
         await self.session.flush()

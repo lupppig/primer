@@ -13,6 +13,7 @@ export type DesignMeta = {
 export type DesignPayload = DesignMeta & {
 	nodes: any[];
 	edges: any[];
+	settings: Record<string, any>;
 };
 
 type DesignState = {
@@ -24,7 +25,7 @@ type DesignState = {
 	fetchDesigns: () => Promise<void>;
 	createDesign: (name: string, description?: string) => Promise<string>;
 	loadDesign: (id: string) => Promise<void>;
-	saveDesign: (id: string, nodes: any[], edges: any[], version: number) => Promise<void>;
+	saveDesign: (id: string, nodes: any[], edges: any[], settings: Record<string, any>, version: number) => Promise<void>;
 	deleteDesign: (id: string) => Promise<void>;
 	renameDesign: (id: string, name: string) => Promise<void>;
 };
@@ -52,7 +53,8 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 				name,
 				description,
 				nodes: [],
-				edges: []
+				edges: [],
+				settings: {}
 			});
 			// Add to list and return ID
 			set((state) => ({
@@ -76,11 +78,18 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 		}
 	},
 
-	saveDesign: async (id: string, nodes: any[], edges: any[], currentVersion: number) => {
+	saveDesign: async (id: string, nodes: any[], edges: any[], settings: Record<string, any>, currentVersion: number) => {
+		const state = get() as DesignState;
+		const current = state.currentDesign;
+		if (!current || current.id !== id) return;
+
 		try {
 			const response = await api.put(`/canvas/design/${id}`, {
+				name: current.name,
+				description: current.description,
 				nodes,
 				edges,
+				settings,
 				version: currentVersion
 			});
 			// Optionally update currentDesign state with new version
@@ -122,6 +131,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 				name,
 				nodes: current.nodes,
 				edges: current.edges,
+				settings: current.settings || {},
 				version: current.version
 			});
 

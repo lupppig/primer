@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactFlow, {
 	Background,
 	Controls,
@@ -10,7 +11,7 @@ import 'reactflow/dist/style.css';
 import { useStore } from '../../store/useStore';
 import { useDesignStore } from '../../store/useDesignStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Activity, Play, Settings, Save, MessageSquare, Loader2, Plus, Minus } from 'lucide-react';
+import { Activity, Play, Settings, Save, MessageSquare, Loader2, Plus, Minus, Home } from 'lucide-react';
 import { Button } from '../Common/Button';
 import { Input } from '../Common/Input';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,6 +40,7 @@ export default function Canvas() {
 	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool } = useStore();
 	const { currentDesign, saveDesign, renameDesign } = useDesignStore();
 	const { user, setAuthModalOpen } = useAuthStore();
+	const navigate = useNavigate();
 	const [isSaving, setIsSaving] = useState(false);
 	const [tempName, setTempName] = useState('');
 	const [isEditingName, setIsEditingName] = useState(false);
@@ -52,6 +54,7 @@ export default function Canvas() {
 	// --- Auto Save Logic ---
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const initialLoadDone = useRef(false);
+	const lastSavedData = useRef({ nodes: '[]', edges: '[]', settings: '{}' });
 
 	useEffect(() => {
 		if (currentDesign?.name) {
@@ -66,27 +69,47 @@ export default function Canvas() {
 		setIsEditingName(false);
 	};
 
+	// Capture initial design load to prevent immediate overwriting
 	useEffect(() => {
-		// Prevent auto-save on the very first render/hydration
-		if (!initialLoadDone.current) {
-			if (nodes.length > 0 || edges.length > 0) {
+		if (currentDesign && !initialLoadDone.current) {
+			// Once we have a currentDesign with nodes/edges, consider the initial load complete
+			if (nodes.length === currentDesign.nodes.length && edges.length === currentDesign.edges.length) {
 				initialLoadDone.current = true;
+				lastSavedData.current = {
+					nodes: JSON.stringify(currentDesign.nodes || []),
+					edges: JSON.stringify(currentDesign.edges || []),
+					settings: JSON.stringify(currentDesign.settings || {})
+				};
 			}
+		}
+	}, [currentDesign, nodes, edges]);
+
+	// Auto Save Logic
+	useEffect(() => {
+		if (!initialLoadDone.current || !currentDesign || simulation.isSimulating) {
 			return;
 		}
 
-		if (currentDesign && !simulation.isSimulating) {
-			setIsSaving(true);
-			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+		// Only save if the data actually changed (prevents saving on pure renders)
+		const currentNodesStr = JSON.stringify(nodes);
+		const currentEdgesStr = JSON.stringify(edges);
+		const currentSettingsStr = JSON.stringify({ targetRps: simulation.targetRps });
 
-			saveTimeoutRef.current = setTimeout(async () => {
-				try {
-					await saveDesign(currentDesign.id, nodes, edges, currentDesign.version);
-				} finally {
-					setIsSaving(false);
-				}
-			}, 1500); // 1.5s debounce
+		if (currentNodesStr === lastSavedData.current.nodes && currentEdgesStr === lastSavedData.current.edges && currentSettingsStr === lastSavedData.current.settings) {
+			return;
 		}
+
+		setIsSaving(true);
+		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+		saveTimeoutRef.current = setTimeout(async () => {
+			try {
+				await saveDesign(currentDesign.id, nodes, edges, { targetRps: simulation.targetRps }, currentDesign.version);
+				lastSavedData.current = { nodes: currentNodesStr, edges: currentEdgesStr, settings: currentSettingsStr };
+			} finally {
+				setIsSaving(false);
+			}
+		}, 1500); // 1.5s debounce
 
 		return () => {
 			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -109,10 +132,15 @@ export default function Canvas() {
 				return;
 			}
 
-			const position = {
-				x: event.clientX - 250,
-				y: event.clientY - 50,
-			};
+			if (!rfInstance) return;
+
+			const reactFlowBounds = document.querySelector('.react-flow')?.getBoundingClientRect();
+			if (!reactFlowBounds) return;
+
+			const position = rfInstance.project({
+				x: event.clientX - reactFlowBounds.left,
+				y: event.clientY - reactFlowBounds.top,
+			});
 
 			const isTextNode = label === 'Text Note';
 			const isGroupNode = label === 'Custom Group';
@@ -138,7 +166,7 @@ export default function Canvas() {
 
 			useStore.getState().setNodes([...nodes, newNode]);
 		},
-		[nodes]
+		[nodes, rfInstance]
 	);
 
 	const onPaneClick = useCallback(
@@ -202,6 +230,17 @@ export default function Canvas() {
 						<Panel position="top-center" className="w-full pointer-events-none mt-2">
 							<div className="flex justify-center w-full">
 								<div className="flex items-center gap-2 bg-[var(--color-panel)] border border-[var(--color-border)] p-1.5 rounded-xl shadow-lg pointer-events-auto">
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 hover:bg-white/5 mr-1"
+										onClick={() => navigate('/dashboard')}
+										title="Return to Dashboard"
+									>
+										<Home className="w-4 h-4 text-[var(--color-text-muted)] hover:text-white" />
+									</Button>
+									<div className="w-px h-4 bg-[var(--color-border)] mr-1" />
+
 									{isEditingName ? (
 										<input
 											autoFocus
@@ -300,7 +339,7 @@ export default function Canvas() {
 											if (currentDesign) {
 												setIsSaving(true);
 												try {
-													await saveDesign(currentDesign.id, nodes, edges, currentDesign.version);
+													await saveDesign(currentDesign.id, nodes, edges, { targetRps: simulation.targetRps }, currentDesign.version);
 												} finally {
 													setIsSaving(false);
 												}

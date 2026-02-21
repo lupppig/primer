@@ -36,6 +36,7 @@ class DesignBase(BaseModel):
     description: Optional[str] = None
     nodes: List[NodeSchema] = []
     edges: List[EdgeSchema] = []
+    settings: Dict[str, Any] = Field(default_factory=dict, description="Canvas and Simulation global settings")
 
     @model_validator(mode='after')
     def validate_graph_integrity(self):

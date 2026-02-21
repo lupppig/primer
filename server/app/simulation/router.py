@@ -50,6 +50,9 @@ async def simulation_websocket(websocket: WebSocket):
             await websocket.close(code=1003)
             return
 
+        # Event to signal when the client has disconnected
+        client_disconnected = asyncio.Event()
+
         async def listen_for_updates():
             nonlocal sim_input
             try:
@@ -62,9 +65,10 @@ async def simulation_websocket(websocket: WebSocket):
                     except (json.JSONDecodeError, ValidationError) as e:
                         logger.error(f"Failed to parse hot reload payload: {e}")
             except WebSocketDisconnect:
-                pass
+                client_disconnected.set()
             except Exception as e:
                 logger.error(f"Error in websocket listener: {e}")
+                client_disconnected.set()
 
         listen_task = asyncio.create_task(listen_for_updates())
         
@@ -79,30 +83,40 @@ async def simulation_websocket(websocket: WebSocket):
         # Start streaming simulation ticks via NATS Worker
         current_tick = 0
         try:
-            while websocket.application_state == WebSocketState.CONNECTED:
+            while not client_disconnected.is_set() and websocket.application_state == WebSocketState.CONNECTED:
                 try:
                     # Prepare payload for worker
                     payload = sim_input.model_dump()
                     payload["current_tick"] = current_tick
                     
-                    # Publish to worker stream, injecting the reply subject
+                    # Publish to worker stream, injecting the reply subject via headers
                     await js.publish(
                         "simulation.requests", 
                         json.dumps(payload).encode(),
-                        reply=reply_topic
+                        headers={"reply-to": reply_topic}
                     )
                     
                     # Wait for the worker to process and publish back (timeout gracefully)
                     try:
                         msg = await sub.next_msg(timeout=5.0)
-                        await websocket.send_text(msg.data.decode())
+                        
+                        try:
+                            await websocket.send_text(msg.data.decode())
+                        except RuntimeError as e:
+                            if "websocket" in str(e).lower() or "asgi" in str(e).lower():
+                                logger.info("WebSocket closed by client during send, ending simulation loop.")
+                                client_disconnected.set()
+                                break
+                            raise  # Re-raise if it's a different RuntimeError
+                            
                         current_tick += 1
                         
                         # Rate limit to 1 simulated tick per second
                         await asyncio.sleep(1.0)
                         
                     except Exception as e:
-                        logger.warning(f"Timeout or error waiting for NATS reply on {reply_topic}: {e}")
+                        if not client_disconnected.is_set():
+                            logger.warning(f"Timeout or error waiting for NATS reply on {reply_topic}: {e}")
                         await asyncio.sleep(1.0) # Prevent tight loop on failure
                         
                 except ValueError as e:

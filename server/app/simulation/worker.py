@@ -5,7 +5,7 @@ from app.core.nats import get_nats_js, nats_client
 from app.simulation.engine import SimulationEngine
 from app.simulation.schemas import SimulationInput
 from pydantic import ValidationError
-from nats.js.errors import TimeoutError
+from nats.errors import TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +35,10 @@ async def start_simulation_worker():
                 try:
                     payload = json.loads(msg.data.decode())
                     sim_input = SimulationInput(**payload)
-                    reply_topic = msg.reply
+                    reply_topic = msg.headers.get("reply-to") if msg.headers else None
                     
                     if not reply_topic:
-                        logger.warning("Received simulation request without a reply topic. Ignoring.")
+                        logger.warning("Received simulation request without a 'reply-to' header. Ignoring.")
                         await msg.ack()
                         continue
                         
