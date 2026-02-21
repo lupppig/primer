@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    FRONTEND_URL: str = "http://localhost:5173"
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     
     # Database URIs
     DATABASE_URL: str

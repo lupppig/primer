@@ -49,7 +49,7 @@ app.include_router(simulation_router, prefix=settings.API_V1_STR)
 # Middlewares (Order matters)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], # Strict CORS
+    allow_origins=settings.ALLOWED_ORIGINS, # Centralized CORS
     allow_credentials=True, # Required for our HTTP-Only JWT cookies
     allow_methods=["*"],
     allow_headers=["*"],

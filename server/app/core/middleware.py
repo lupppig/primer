@@ -1,6 +1,7 @@
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from app.core.config import settings
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -28,7 +29,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             origin = request.headers.get("origin")
             referer = request.headers.get("referer")
             
-            allowed_origin = "http://localhost:5173" # In production use settings.FRONTEND_URL
+            allowed_origin = settings.FRONTEND_URL
             
             # 1. Check Origin header (modern browsers)
             if origin and origin != allowed_origin:
