@@ -37,9 +37,11 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 
 export default function Canvas() {
 	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool } = useStore();
-	const { currentDesign, saveDesign } = useDesignStore();
+	const { currentDesign, saveDesign, renameDesign } = useDesignStore();
 	const { user, setAuthModalOpen } = useAuthStore();
 	const [isSaving, setIsSaving] = useState(false);
+	const [tempName, setTempName] = useState('');
+	const [isEditingName, setIsEditingName] = useState(false);
 	const [rfInstance, setRfInstance] = useState<any>(null);
 
 	const bottleneckLabels = nodes
@@ -50,6 +52,19 @@ export default function Canvas() {
 	// --- Auto Save Logic ---
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const initialLoadDone = useRef(false);
+
+	useEffect(() => {
+		if (currentDesign?.name) {
+			setTempName(currentDesign.name);
+		}
+	}, [currentDesign?.name]);
+
+	const handleRename = async () => {
+		if (currentDesign && tempName && tempName !== currentDesign.name) {
+			await renameDesign(currentDesign.id, tempName);
+		}
+		setIsEditingName(false);
+	};
 
 	useEffect(() => {
 		// Prevent auto-save on the very first render/hydration
@@ -116,7 +131,6 @@ export default function Canvas() {
 				},
 			};
 
-			// Groups uniquely require styling dimensions and zIndex depth so they sit behind servers
 			if (isGroupNode) {
 				newNode.style = { width: 400, height: 400 };
 				newNode.zIndex = -10;
@@ -145,11 +159,9 @@ export default function Canvas() {
 					};
 
 					useStore.getState().setNodes([...nodes, newNode]);
-					setActiveTool('select'); // revert back to select mode right after dropping
+					setActiveTool('select');
 				}
 			}
-
-			// If we wanted to handle drawing drops, we could do it here or via mouse-down/up trackers
 		},
 		[activeTool, rfInstance, nodes, setActiveTool]
 	);
@@ -190,10 +202,26 @@ export default function Canvas() {
 						<Panel position="top-center" className="w-full pointer-events-none mt-2">
 							<div className="flex justify-center w-full">
 								<div className="flex items-center gap-2 bg-[var(--color-panel)] border border-[var(--color-border)] p-1.5 rounded-xl shadow-lg pointer-events-auto">
-									<Button variant="ghost" size="sm" className="h-8 gap-2">
-										<div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-										{currentDesign?.name || 'Untitled Design'}
-									</Button>
+									{isEditingName ? (
+										<input
+											autoFocus
+											className="bg-transparent text-white text-sm font-medium px-2 py-0.5 outline-none border-b border-[var(--color-primary)] w-48"
+											value={tempName}
+											onChange={(e) => setTempName(e.target.value)}
+											onBlur={handleRename}
+											onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+										/>
+									) : (
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-8 gap-2 hover:bg-white/5"
+											onClick={() => setIsEditingName(true)}
+										>
+											<div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+											{currentDesign?.name || 'Untitled'}
+										</Button>
+									)}
 									<div className="w-px h-4 bg-[var(--color-border)]" />
 
 									<div className="flex items-center gap-1 px-2 border-r border-[var(--color-border)]">

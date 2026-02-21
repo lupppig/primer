@@ -25,7 +25,7 @@ export default function Dashboard() {
 	const handleCreateDesign = async () => {
 		try {
 			// Creates a blank design in the DB
-			const newId = await createDesign('Untitled Architecture', 'A new system design');
+			const newId = await createDesign('Untitled', 'A new system design');
 			navigate(`/canvas?id=${newId}`);
 		} catch (e) {
 			console.error("Failed to create design", e);

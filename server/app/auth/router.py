@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.exceptions import UnauthorizedException, ValidationException
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.core.config import settings
+from app.auth.dependencies import get_current_user_id
 from app.users.schemas import UserCreate, UserResponse, UserLogin
 from app.users.repository import UserRepository
 
@@ -77,6 +78,17 @@ async def logout(response: Response):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"message": "Logged out successfully"}
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    repo = UserRepository(db)
+    user = await repo.get_by_id(user_id)
+    if not user:
+        raise UnauthorizedException("User not found")
+    return user
 
 @router.get("/oauth/github")
 async def oauth_github_placeholder():

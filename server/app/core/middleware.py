@@ -22,16 +22,36 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         """
         Validates the origin of the request to prevent Cross-Site Request Forgery.
-        If we are using cookie-based authentication, an attacker could forge a request.
-        This checks that mutating requests (POST/PUT/DELETE) come from an allowed origin.
+        Only allows requests from the defined FRONTEND_URL.
         """
         if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
             origin = request.headers.get("origin")
             referer = request.headers.get("referer")
             
-            # Simple check for now. In production, validate against `settings.FRONTEND_URL`
-            # If no origin or referer is present on a mutating request, log it or block it.
-            # Localhost dev environments can sometimes omit this depending on the client.
-            pass 
+            allowed_origin = "http://localhost:5173" # In production use settings.FRONTEND_URL
+            
+            # 1. Check Origin header (modern browsers)
+            if origin and origin != allowed_origin:
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF verification failed: Origin mismatch."}
+                )
+            
+            # 2. Check Referer header (fallback)
+            if not origin and referer and not referer.startswith(allowed_origin):
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF verification failed: Invalid referer."}
+                )
+                
+            # 3. If neither origin nor referer is present on a mutating request, block it
+            if not origin and not referer:
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF verification failed: Missing origin/referer headers."}
+                )
             
         return await call_next(request)

@@ -26,9 +26,10 @@ type DesignState = {
 	loadDesign: (id: string) => Promise<void>;
 	saveDesign: (id: string, nodes: any[], edges: any[], version: number) => Promise<void>;
 	deleteDesign: (id: string) => Promise<void>;
+	renameDesign: (id: string, name: string) => Promise<void>;
 };
 
-export const useDesignStore = create<DesignState>((set) => ({
+export const useDesignStore = create<DesignState>((set, get) => ({
 	designs: [],
 	currentDesign: null,
 	isLoading: false,
@@ -108,6 +109,32 @@ export const useDesignStore = create<DesignState>((set) => ({
 		} catch (error: any) {
 			set({ error: error.message, isLoading: false });
 			throw error;
+		}
+	},
+
+	renameDesign: async (id: string, name: string) => {
+		const state = get() as DesignState;
+		const current = state.currentDesign;
+		if (!current || current.id !== id) return;
+
+		try {
+			const response = await api.put(`/canvas/design/${id}`, {
+				name,
+				nodes: current.nodes,
+				edges: current.edges,
+				version: current.version
+			});
+
+			set((state) => ({
+				currentDesign: state.currentDesign ? {
+					...state.currentDesign,
+					name: response.data.name,
+					version: response.data.version
+				} : null,
+				designs: state.designs.map(d => d.id === id ? { ...d, name: response.data.name, version: response.data.version } : d)
+			}));
+		} catch (error) {
+			console.error("Rename failed", error);
 		}
 	}
 }));

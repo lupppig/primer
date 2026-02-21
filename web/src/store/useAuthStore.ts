@@ -23,6 +23,7 @@ type AuthState = {
 	register: (email: string, username: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
 	clearError: () => void;
+	checkAuth: () => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -73,6 +74,16 @@ export const useAuthStore = create<AuthState>((set) => ({
 				error: error.response?.data?.detail || 'Failed to logout',
 				isLoading: false
 			});
+		}
+	},
+
+	checkAuth: async () => {
+		set({ isLoading: true });
+		try {
+			const response = await api.get('/auth/me');
+			set({ user: response.data, isLoading: false });
+		} catch (error) {
+			set({ user: null, isLoading: false });
 		}
 	},
 
