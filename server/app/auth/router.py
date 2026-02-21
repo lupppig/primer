@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt, JWTError
 
 from app.core.database import get_db
 from app.core.exceptions import UnauthorizedException, ValidationException
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.core.config import settings
+from app.core.redis import redis_client
 from app.auth.dependencies import get_current_user_id
 from app.users.schemas import UserCreate, UserResponse, UserLogin
 from app.users.repository import UserRepository
@@ -74,7 +76,23 @@ async def login(
     return user
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            scheme, _, token_val = token.partition(" ")
+            if not token_val:
+                token_val = scheme
+                
+            payload = jwt.decode(token_val, settings.SECRET_KEY, algorithms=["HS256"])
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            
+            if jti and exp:
+                await redis_client.block_token(jti, exp)
+        except JWTError:
+            pass # Ignore invalid tokens on logout
+            
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"message": "Logged out successfully"}

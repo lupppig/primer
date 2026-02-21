@@ -2,6 +2,8 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from app.core.config import settings
+from app.core.redis import redis_client
+import time
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -55,4 +57,40 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     content={"detail": "CSRF verification failed: Missing origin/referer headers."}
                 )
             
+            
+        return await call_next(request)
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        """
+        Global rate limiter using Redis.
+        Limits expensive endpoints based on client IP.
+        """
+        path = request.url.path
+        
+        # Define limits (requests, window_seconds)
+        limits = {
+            "/api/v1/canvas/design": (10, 60) if request.method in ["POST", "PUT"] else None,
+            "/api/v1/simulation/run": (20, 60) if request.method == "POST" else None,
+        }
+        
+        limit_config = None
+        for route, config in limits.items():
+            if path.startswith(route) and config:
+                limit_config = config
+                break
+                
+        if limit_config:
+            max_reqs, window = limit_config
+            # Fallback to a generic IP if missing (e.g. behind proxy without forwarding)
+            client_ip = request.client.host if request.client else "unknown_ip"
+            key = f"rate_limit:{client_ip}:{path}"
+            
+            if await redis_client.is_rate_limited(key, max_reqs, window):
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many requests. Please try again later."}
+                )
+                
         return await call_next(request)

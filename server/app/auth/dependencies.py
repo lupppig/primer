@@ -2,9 +2,10 @@ from fastapi import Request
 from jose import jwt, JWTError
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedException
+from app.core.redis import redis_client
 import uuid
 
-def get_current_user_id(request: Request) -> uuid.UUID:
+async def get_current_user_id(request: Request) -> uuid.UUID:
     """
     Dependency to extract user_id from the HTTP-Only JWT Cookie.
     """
@@ -19,6 +20,11 @@ def get_current_user_id(request: Request) -> uuid.UUID:
             token = scheme  # Fallback if just token is sent
             
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        
+        jti = payload.get("jti")
+        if jti and await redis_client.is_token_blocked(jti):
+            raise UnauthorizedException("Token has been revoked")
+            
         user_id_str = payload.get("sub")
         if user_id_str is None:
             raise UnauthorizedException("Could not validate credentials")

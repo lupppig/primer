@@ -6,7 +6,7 @@ import logging
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.exceptions import setup_exception_handlers
-from app.core.middleware import SecurityHeadersMiddleware, CSRFMiddleware
+from app.core.middleware import SecurityHeadersMiddleware, CSRFMiddleware, RateLimitMiddleware
 from app.core.redis import redis_client
 from app.core.nats import nats_client
 from app.auth.router import router as auth_router
@@ -56,6 +56,7 @@ app.add_middleware(
 )
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 @app.get("/health")
 async def health_check():
