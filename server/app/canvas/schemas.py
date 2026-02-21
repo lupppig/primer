@@ -9,6 +9,14 @@ class NodeSchema(BaseModel):
     position: Dict[str, float] = Field(..., description="X, Y coordinates")
     data: Dict[str, Any] = Field(..., description="Node metadata properties")
     
+    # React Flow Optional Structural / Visual Properties
+    parentNode: Optional[str] = None
+    extent: Optional[str] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    style: Optional[Dict[str, Any]] = None
+    zIndex: Optional[int] = None
+    
     # Simulation Math Properties
     capacity_rps: Optional[float] = 1000.0
     base_latency_ms: Optional[float] = 50.0
