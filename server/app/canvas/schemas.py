@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 from app.core.exceptions import ValidationException
 
 class NodeSchema(BaseModel):
@@ -27,10 +27,10 @@ class DesignBase(BaseModel):
     nodes: List[NodeSchema] = []
     edges: List[EdgeSchema] = []
 
-    @root_validator(pre=False)
-    def validate_graph_integrity(cls, values):
-        nodes = values.get('nodes', [])
-        edges = values.get('edges', [])
+    @model_validator(mode='after')
+    def validate_graph_integrity(self):
+        nodes = self.nodes or []
+        edges = self.edges or []
         
         node_ids = {n.id for n in nodes}
         
@@ -43,7 +43,7 @@ class DesignBase(BaseModel):
             if edge.source not in node_ids or edge.target not in node_ids:
                 raise ValidationException(f"Edge {edge.id} references non-existent nodes.")
                 
-        return values
+        return self
 
 class DesignCreate(DesignBase):
     pass
