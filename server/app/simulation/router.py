@@ -1,8 +1,11 @@
 import asyncio
 import json
+import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from starlette.websockets import WebSocketState
 from pydantic import ValidationError
+
+from app.core.nats import get_nats_js
 
 from app.simulation.schemas import SimulationInput
 from app.simulation.engine import SimulationEngine
@@ -64,25 +67,44 @@ async def simulation_websocket(websocket: WebSocket):
                 logger.error(f"Error in websocket listener: {e}")
 
         listen_task = asyncio.create_task(listen_for_updates())
+        
+        # NATS Integration
+        js = await get_nats_js()
+        client_id = str(uuid.uuid4())
+        reply_topic = f"simulation.results.{client_id}"
+        
+        # Subscribe to our specific reply topic
+        sub = await js.subscribe(reply_topic)
 
-        # Start streaming simulation ticks
+        # Start streaming simulation ticks via NATS Worker
         current_tick = 0
         try:
             while websocket.application_state == WebSocketState.CONNECTED:
                 try:
-                    # Compute the next tick based on current state (which can be hot reloaded)
-                    result = SimulationEngine.compute_tick(
-                        graph=sim_input.graph,
-                        incoming_rps=sim_input.incoming_rps, 
-                        current_time=current_tick
+                    # Prepare payload for worker
+                    payload = sim_input.model_dump()
+                    payload["current_tick"] = current_tick
+                    
+                    # Publish to worker stream, injecting the reply subject
+                    await js.publish(
+                        "simulation.requests", 
+                        json.dumps(payload).encode(),
+                        reply=reply_topic
                     )
                     
-                    await websocket.send_text(result.model_dump_json())
-                    current_tick += 1
-                    
-                    # Sleep to prevent blocking the event loop and simulate realtime progress (e.g. 1 tick = 1 second)
-                    await asyncio.sleep(1.0)
-                    
+                    # Wait for the worker to process and publish back (timeout gracefully)
+                    try:
+                        msg = await sub.next_msg(timeout=5.0)
+                        await websocket.send_text(msg.data.decode())
+                        current_tick += 1
+                        
+                        # Rate limit to 1 simulated tick per second
+                        await asyncio.sleep(1.0)
+                        
+                    except Exception as e:
+                        logger.warning(f"Timeout or error waiting for NATS reply on {reply_topic}: {e}")
+                        await asyncio.sleep(1.0) # Prevent tight loop on failure
+                        
                 except ValueError as e:
                      logger.exception("Simulation Error Caught")
                      await websocket.send_json({"error": "Simulation Error", "details": str(e)})
@@ -90,6 +112,7 @@ async def simulation_websocket(websocket: WebSocket):
                      break
         finally:
             listen_task.cancel()
+            await sub.unsubscribe()
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket Client disconnected: {websocket.client}")

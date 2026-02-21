@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,7 @@ from app.core.nats import nats_client
 from app.auth.router import router as auth_router
 from app.canvas.router import router as canvas_router
 from app.simulation.router import router as simulation_router
+from app.simulation.worker import start_simulation_worker
 
 # Setup centralized logging config
 setup_logging()
@@ -24,10 +26,15 @@ async def lifespan(app: FastAPI):
     await redis_client.connect()
     await nats_client.connect()
     
+    # Start background workers
+    app.state.simulation_worker_task = asyncio.create_task(start_simulation_worker())
+    
     yield
     
     # Shutdown Events
     logger.info("Shutting down Primer Backend Services...")
+    if hasattr(app.state, "simulation_worker_task"):
+        app.state.simulation_worker_task.cancel()
     await redis_client.disconnect()
     await nats_client.disconnect()
 

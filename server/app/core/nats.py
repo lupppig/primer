@@ -1,6 +1,7 @@
 import logging
 import nats
 from nats.js import JetStreamContext
+from nats.js.errors import NotFoundError
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -15,10 +16,19 @@ class NATSClient:
         try:
             self.nc = await nats.connect(servers=[settings.NATS_URL])
             self.js = self.nc.jetstream()
-            logger.info("Successfully connected to NATS JetStream.")
             
-            # Optionally setup streams immediately for specific topics if they don't exist
-            # await self.js.add_stream(name="SIMULATION", subjects=["simulations.*"])
+            # Setup the Simulation stream for pub/sub decouple
+            try:
+                await self.js.stream_info("SIMULATION")
+            except NotFoundError:
+                await self.js.add_stream(
+                    name="SIMULATION",
+                    subjects=["simulation.>"], # Catches simulation.requests and simulation.results.*
+                    max_msgs=10000,
+                    discard="old"
+                )
+            
+            logger.info("Successfully connected to NATS JetStream.")
             
         except Exception as e:
             logger.error(f"Failed to connect to NATS JetStream: {e}")
