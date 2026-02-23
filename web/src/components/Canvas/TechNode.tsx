@@ -1,5 +1,5 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
-import { Copy, Trash2, Plus, Minus } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
 import { useStore } from '../../store/useStore';
@@ -13,21 +13,7 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const simulation = useStore(state => state.simulation);
 	const duplicateNode = useStore(state => state.duplicateNode);
 	const deleteNode = useStore(state => state.deleteNode);
-	const updateNodeData = useStore(state => state.updateNodeData);
 	const [menuOpen, setMenuOpen] = useState(false);
-
-	// Ensure fields have defaults for UI binding
-	const capacityRps = data.capacity_rps ?? 1000;
-	const baseLatencyMs = data.base_latency_ms ?? 10;
-	const rateLimitRps = data.rate_limit_rps ?? null;
-
-	const handleIncrement = (field: string, current: number, step: number) => {
-		updateNodeData(id, { [field]: current + step });
-	};
-
-	const handleDecrement = (field: string, current: number, step: number, min: number = 0) => {
-		updateNodeData(id, { [field]: Math.max(min, current - step) });
-	};
 
 	// Auto-close menu if the node is deselected
 	useEffect(() => {
@@ -69,55 +55,14 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				{/* Dropdown Action Menu */}
 				{menuOpen && !simulation.isSimulating && (
 					<div
-						className="absolute -top-[140px] left-1/2 -translate-x-1/2 z-50 flex flex-col bg-[#0f111a]/95 backdrop-blur-md border border-[#2a2f40] rounded shadow-2xl p-1.5 gap-1.5 min-w-[140px]"
+						className="absolute -top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col bg-[#0f111a]/95 backdrop-blur-md border border-[#2a2f40] rounded shadow-2xl p-1 gap-1 min-w-[120px]"
 						onClick={(e) => e.stopPropagation()}
 					>
-						{/* Configuration Controls */}
-						<div className="flex flex-col gap-1 pb-1.5 border-b border-[#2a2f40]">
-							{/* Capacity */}
-							<div className="flex justify-between items-center text-[9px] text-white">
-								<span className="text-[var(--color-text-muted)] font-medium">Capacity</span>
-								<div className="flex items-center bg-[#1f2330] rounded border border-[#2a2f40]">
-									<button onClick={() => handleDecrement('capacity_rps', capacityRps, 100, 100)} className="p-0.5 hover:bg-[#2a2f40] hover:text-white text-[var(--color-text-muted)] rounded-l transition-colors"><Minus className="w-2.5 h-2.5" /></button>
-									<span className="w-8 text-center font-mono">{capacityRps}</span>
-									<button onClick={() => handleIncrement('capacity_rps', capacityRps, 100)} className="p-0.5 hover:bg-[#2a2f40] hover:text-white text-[var(--color-text-muted)] rounded-r transition-colors"><Plus className="w-2.5 h-2.5" /></button>
-								</div>
-							</div>
-							{/* Latency */}
-							<div className="flex justify-between items-center text-[9px] text-white">
-								<span className="text-[var(--color-text-muted)] font-medium">Latency</span>
-								<div className="flex items-center bg-[#1f2330] rounded border border-[#2a2f40]">
-									<button onClick={() => handleDecrement('base_latency_ms', baseLatencyMs, 5, 0)} className="p-0.5 hover:bg-[#2a2f40] hover:text-white text-[var(--color-text-muted)] rounded-l transition-colors"><Minus className="w-2.5 h-2.5" /></button>
-									<span className="w-8 text-center font-mono">{baseLatencyMs}</span>
-									<button onClick={() => handleIncrement('base_latency_ms', baseLatencyMs, 5)} className="p-0.5 hover:bg-[#2a2f40] hover:text-white text-[var(--color-text-muted)] rounded-r transition-colors"><Plus className="w-2.5 h-2.5" /></button>
-								</div>
-							</div>
-							{/* Rate Limit */}
-							<div className="flex justify-between items-center text-[9px] text-white">
-								<span className="text-[var(--color-text-muted)] font-medium">Rate Limit</span>
-								<div className="flex items-center bg-[#1f2330] rounded border border-[#2a2f40]">
-									<button
-										onClick={() => rateLimitRps !== null ? handleDecrement('rate_limit_rps', rateLimitRps, 50, 0) : updateNodeData(id, { rate_limit_rps: 100 })}
-										className="p-0.5 hover:bg-[#2a2f40] hover:text-white text-[var(--color-text-muted)] rounded-l transition-colors"
-									>
-										<Minus className="w-2.5 h-2.5" />
-									</button>
-									<span className="w-8 text-center font-mono text-[8px]">{rateLimitRps === null ? 'OFF' : rateLimitRps}</span>
-									<button
-										onClick={() => rateLimitRps !== null ? handleIncrement('rate_limit_rps', rateLimitRps, 50) : updateNodeData(id, { rate_limit_rps: 100 })}
-										className="p-0.5 hover:bg-[#2a2f40] hover:text-white text-[var(--color-text-muted)] rounded-r transition-colors"
-									>
-										<Plus className="w-2.5 h-2.5" />
-									</button>
-								</div>
-							</div>
-						</div>
-
 						{/* Actions */}
-						<div className="flex gap-1 justify-between">
+						<div className="flex flex-col gap-1">
 							<button
 								onClick={() => { duplicateNode(id); setMenuOpen(false); }}
-								className="flex-1 flex items-center justify-center gap-1.5 px-1 py-1 text-[10px] font-medium text-white bg-[#1a1c23] hover:bg-[#2a2f40] rounded transition-colors"
+								className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1a1c23] rounded transition-colors w-full"
 								title="Duplicate Node"
 							>
 								<Copy className="w-3 h-3 text-blue-400" />
@@ -125,7 +70,7 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 							</button>
 							<button
 								onClick={() => { deleteNode(id); setMenuOpen(false); }}
-								className="flex-1 flex items-center justify-center gap-1.5 px-1 py-1 text-[10px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
+								className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-red-400 hover:bg-red-500/10 rounded transition-colors w-full"
 								title="Delete Node"
 							>
 								<Trash2 className="w-3 h-3" />
