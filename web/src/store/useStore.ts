@@ -20,6 +20,7 @@ export type SimulationState = {
 	totalRps: number;
 	targetRps: number;
 	activeBottlenecks: string[];
+	nodeMetrics: Record<string, any>;
 };
 
 type AppState = {
@@ -36,6 +37,8 @@ type AppState = {
 	setTargetRps: (rps: number) => void;
 	activeTool: string;
 	setActiveTool: (tool: string) => void;
+	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => void;
+	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => void;
 };
 
 // Initial Mock Nodes Removed in favor of empty start
@@ -50,10 +53,37 @@ export const useStore = create<AppState>((set, get) => ({
 		totalRps: 0,
 		targetRps: 1500, // Default Starting RPS
 		activeBottlenecks: [],
+		nodeMetrics: {},
 	},
 	activeTool: 'select',
 	setActiveTool: (tool: string) => {
 		set({ activeTool: tool });
+	},
+	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => {
+		const state = get();
+		const nodeToClone = state.nodes.find(n => n.id === id);
+		if (!nodeToClone) return;
+
+		const newNode = {
+			...nodeToClone,
+			id: `node_${new Date().getTime()}`,
+			position: newPosition || { x: nodeToClone.position.x + 50, y: nodeToClone.position.y + 50 },
+			selected: true
+		};
+
+		// Deselect others
+		const updatedNodes = state.nodes.map(n => ({ ...n, selected: false }));
+
+		set({ nodes: [...updatedNodes, newNode] });
+	},
+	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => {
+		set(state => ({
+			edges: state.edges.map(e =>
+				e.id === edgeId
+					? { ...e, data: { ...e.data, protocol } }
+					: e
+			)
+		}));
 	},
 	onNodesChange: (changes: NodeChange[]) => {
 		set({
@@ -72,6 +102,7 @@ export const useStore = create<AppState>((set, get) => ({
 			type: 'traffic',
 			animated: isSimulating,
 			style: { stroke: isSimulating ? '#3caff6' : '#5048e5' },
+			data: { protocol: 'HTTP' } // Default protocol
 		};
 		set({
 			edges: addEdge(newEdge, get().edges),
@@ -91,6 +122,9 @@ export const useStore = create<AppState>((set, get) => ({
 			// 1. Convert React Flow payload to FastAPI schema
 			const simNodes: any = {};
 			nodes.forEach(n => {
+				// Only include tech nodes in the simulation
+				if (n.type !== 'techNode') return;
+
 				const lbl = (n.data?.label || '').toLowerCase();
 				const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
 				simNodes[n.id] = {
@@ -104,12 +138,14 @@ export const useStore = create<AppState>((set, get) => ({
 				};
 			});
 
-			const simEdges = edges.map(e => ({
-				id: e.id,
-				source: e.source,
-				target: e.target,
-				traffic_percent: 1.0 // 100% fan-out per edge MVP
-			}));
+			const simEdges = edges
+				.filter(e => simNodes[e.source] && simNodes[e.target]) // Only include edges between valid tech nodes
+				.map(e => ({
+					id: e.id,
+					source: e.source,
+					target: e.target,
+					traffic_percent: 1.0 // 100% fan-out per edge MVP
+				}));
 
 			const payload = {
 				incoming_rps: get().simulation.targetRps,
@@ -149,14 +185,24 @@ export const useStore = create<AppState>((set, get) => ({
 							const targetUtil = nodeUtils[edge.target] || 0;
 							let strokeColor = '#3caff6'; // Base Blue
 							if (targetUtil >= 1.0) {
-								strokeColor = '#ef4444'; // Red Bottleneck
+								strokeColor = '#ff3344'; // Red Bottleneck
 							} else if (targetUtil >= 0.7) {
 								strokeColor = '#fbbf24'; // Yellow Warning
 							}
 
+							// Calculate edge speed based on source's effective RPS (if available)
+							let simDuration = 1.5;
+							const sourceMetrics = data.nodes ? data.nodes[edge.source] : null;
+							if (sourceMetrics) {
+								const eff_rps = sourceMetrics.effective_rps || 0;
+								// Scale down duration for higher RPS (faster animation)
+								simDuration = Math.max(0.1, 2.0 - (eff_rps / 50000) * 1.9);
+							}
+
 							return {
 								...edge,
-								style: { ...edge.style, stroke: strokeColor }
+								style: { ...edge.style, stroke: strokeColor },
+								data: { ...edge.data, simDuration, rps: sourceMetrics?.effective_rps || 0 }
 							};
 						});
 
@@ -166,6 +212,7 @@ export const useStore = create<AppState>((set, get) => ({
 								...state.simulation,
 								totalRps: data.graph_metrics?.total_throughput || 0,
 								activeBottlenecks: data.graph_metrics?.bottleneck_nodes || [],
+								nodeMetrics: data.nodes || {},
 							}
 						};
 					});
@@ -204,6 +251,7 @@ export const useStore = create<AppState>((set, get) => ({
 				...state.simulation,
 				isSimulating,
 				activeBottlenecks: isSimulating ? state.simulation.activeBottlenecks : [],
+				nodeMetrics: isSimulating ? state.simulation.nodeMetrics : {},
 			}
 		}));
 	},
@@ -221,6 +269,9 @@ export const useStore = create<AppState>((set, get) => ({
 			const { nodes, edges } = get();
 			const simNodes: any = {};
 			nodes.forEach(n => {
+				// Only include tech nodes in the simulation
+				if (n.type !== 'techNode') return;
+
 				const lbl = (n.data?.label || '').toLowerCase();
 				const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
 				simNodes[n.id] = {
@@ -233,12 +284,14 @@ export const useStore = create<AppState>((set, get) => ({
 					rate_limit_rps: n.data?.rate_limit_rps ?? null
 				};
 			});
-			const simEdges = edges.map(e => ({
-				id: e.id,
-				source: e.source,
-				target: e.target,
-				traffic_percent: 1.0
-			}));
+			const simEdges = edges
+				.filter(e => simNodes[e.source] && simNodes[e.target]) // Only include edges between valid tech nodes
+				.map(e => ({
+					id: e.id,
+					source: e.source,
+					target: e.target,
+					traffic_percent: 1.0
+				}));
 			const payload = {
 				incoming_rps: rps,
 				graph: { nodes: simNodes, edges: simEdges }

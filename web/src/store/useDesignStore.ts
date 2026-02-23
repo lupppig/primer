@@ -83,6 +83,9 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 		const current = state.currentDesign;
 		if (!current || current.id !== id) return;
 
+		// Always use the latest version from the store to prevent stale closure conflicts from timeouts
+		const latestVersion = get().currentDesign?.version ?? currentVersion;
+
 		try {
 			const response = await api.put(`/canvas/design/${id}`, {
 				name: current.name,
@@ -90,12 +93,15 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 				nodes,
 				edges,
 				settings,
-				version: currentVersion
+				version: latestVersion
 			});
-			// Optionally update currentDesign state with new version
+			// Update currentDesign state with new version and the latest canvas payload
 			set((state) => ({
 				currentDesign: state.currentDesign ? {
 					...state.currentDesign,
+					nodes,
+					edges,
+					settings,
 					version: response.data.version,
 					updated_at: response.data.updated_at
 				} : null
