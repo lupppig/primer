@@ -48,7 +48,7 @@ export default function Canvas() {
 	const [rfInstance, setRfInstance] = useState<any>(null);
 
 	const bottleneckLabels = nodes
-		.filter(n => simulation.activeBottlenecks.includes(n.id))
+		.filter(n => (simulation.activeBottlenecks || []).includes(n.id))
 		.map(n => n.data.label || 'Unknown Node')
 		.join(', ') || 'System';
 
@@ -221,7 +221,7 @@ export default function Canvas() {
 
 						<MiniMap
 							nodeColor={(n) => {
-								if (simulation.isSimulating && simulation.activeBottlenecks.includes(n.id)) return '#ff3344';
+								if (simulation.isSimulating && (simulation.activeBottlenecks || []).includes(n.id)) return '#ff3344';
 								return '#3caff6';
 							}}
 							maskColor="rgba(9, 10, 15, 0.8)"

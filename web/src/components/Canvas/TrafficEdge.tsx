@@ -25,6 +25,10 @@ export default function TrafficEdge({
 		targetPosition,
 	});
 
+	if (!edgePath) {
+		return null;
+	}
+
 	const simulation = useStore(state => state.simulation);
 	const updateEdgeProtocol = useStore(state => state.updateEdgeProtocol);
 
@@ -32,7 +36,7 @@ export default function TrafficEdge({
 
 	// We want the default edge to be subtle, and animated edge to be bright and moving.
 	const strokeColor = style?.stroke || '#3caff6';
-	let baseStrokeWidth = Number(style?.strokeWidth || 1.5);
+	let baseStrokeWidth = parseFloat(String(style?.strokeWidth)) || 1.5;
 
 	// Different styles strictly based on the explicit protocol connection type
 	let dashArray = '4 8'; // HTTP default (Standard dashed)
@@ -66,7 +70,7 @@ export default function TrafficEdge({
 			/>
 
 			{/* Animated Traffic Overlay */}
-			{simulation.isSimulating && animated && (data?.rps > 0) && (
+			{simulation.isSimulating && animated && ((data?.rps ?? 0) > 0) && (
 				<>
 					<path
 						d={edgePath}

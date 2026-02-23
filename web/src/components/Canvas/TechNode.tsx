@@ -1,5 +1,5 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy, Trash2, Flame } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
 import { useStore } from '../../store/useStore';
@@ -13,6 +13,7 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const simulation = useStore(state => state.simulation);
 	const duplicateNode = useStore(state => state.duplicateNode);
 	const deleteNode = useStore(state => state.deleteNode);
+	const toggleNodeFailure = useStore(state => state.toggleNodeFailure);
 	const [menuOpen, setMenuOpen] = useState(false);
 
 	// Auto-close menu if the node is deselected
@@ -20,13 +21,19 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 		if (!selected) setMenuOpen(false);
 	}, [selected]);
 
-	const isBottleneck = simulation.isSimulating && simulation.activeBottlenecks.includes(id);
-	const activeColor = isBottleneck ? '#ff3344' : color;
+	const isFailed = (simulation.chaosNodes || []).includes(id);
+	const isBottleneck = simulation.isSimulating && (simulation.activeBottlenecks || []).includes(id);
+	const activeColor = isFailed ? '#4b5563' : (isBottleneck ? '#ff3344' : color);
 
 	// Node metrics during simulation
 	const nodeMetrics = simulation.isSimulating ? (simulation.nodeMetrics[id] || {}) : {};
 	const effectiveRps = nodeMetrics.effective_rps || 0;
 	const utilization = nodeMetrics.utilization || 0;
+	const queueDepth = nodeMetrics.queue_depth || 0;
+	const droppedRequests = nodeMetrics.dropped_requests || 0;
+	const latency = nodeMetrics.latency || 0;
+
+	const isQueue = ['queue', 'kafka', 'rabbitmq', 'sqs'].some(q => componentType.toLowerCase().includes(q));
 
 	// Dynamic pulse speed based on network utilization
 	let pulseSpeed = '2s';
@@ -53,29 +60,43 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				onClick={() => setMenuOpen(!menuOpen)}
 			>
 				{/* Dropdown Action Menu */}
-				{menuOpen && !simulation.isSimulating && (
+				{menuOpen && (
 					<div
-						className="absolute -top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col bg-[#0f111a]/95 backdrop-blur-md border border-[#2a2f40] rounded shadow-2xl p-1 gap-1 min-w-[120px]"
+						className="absolute -top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col bg-[#0f111a]/95 backdrop-blur-md border border-[#2a2f40] rounded shadow-2xl p-1 gap-1 min-w-[120px]"
 						onClick={(e) => e.stopPropagation()}
 					>
 						{/* Actions */}
 						<div className="flex flex-col gap-1">
+							{/* Chaos Action (Only relevant during simulation, or toggles state for when it starts) */}
 							<button
-								onClick={() => { duplicateNode(id); setMenuOpen(false); }}
-								className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1a1c23] rounded transition-colors w-full"
-								title="Duplicate Node"
+								onClick={() => { toggleNodeFailure(id); setMenuOpen(false); }}
+								className={`flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold rounded transition-colors w-full ${isFailed ? 'text-green-400 hover:bg-green-500/10' : 'text-orange-400 hover:bg-orange-500/10'}`}
+								title={isFailed ? "Recover Node" : "Fail Node"}
 							>
-								<Copy className="w-3 h-3 text-blue-400" />
-								Duplicate
+								<Flame className="w-3 h-3" />
+								{isFailed ? "Recover" : "Fail Node"}
 							</button>
-							<button
-								onClick={() => { deleteNode(id); setMenuOpen(false); }}
-								className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-red-400 hover:bg-red-500/10 rounded transition-colors w-full"
-								title="Delete Node"
-							>
-								<Trash2 className="w-3 h-3" />
-								Delete
-							</button>
+
+							{!simulation.isSimulating && (
+								<>
+									<button
+										onClick={() => { duplicateNode(id); setMenuOpen(false); }}
+										className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1a1c23] rounded transition-colors w-full"
+										title="Duplicate Node"
+									>
+										<Copy className="w-3 h-3 text-blue-400" />
+										Duplicate
+									</button>
+									<button
+										onClick={() => { deleteNode(id); setMenuOpen(false); }}
+										className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-red-400 hover:bg-red-500/10 rounded transition-colors w-full"
+										title="Delete Node"
+									>
+										<Trash2 className="w-3 h-3" />
+										Delete
+									</button>
+								</>
+							)}
 						</div>
 					</div>
 				)}
@@ -96,18 +117,18 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				/>
 
 				<div
-					className={`w-full h-full rounded-lg flex items-center justify-center relative transition-all duration-300 bg-[#0f111a] border border-[#2a2f40] ${simulation.isSimulating ? 'animate-pulse' : ''}`}
+					className={`w-full h-full rounded-lg flex items-center justify-center relative transition-all duration-300 bg-[#0f111a] border border-[#2a2f40] ${simulation.isSimulating && !isFailed ? 'animate-pulse' : ''} ${isFailed ? 'opacity-50 grayscale' : ''}`}
 					style={{
 						// Solid background, neon border, and box-shadow glow
-						boxShadow: isBottleneck ? `0 0 15px 2px ${activeColor}40` : `0 0 10px 1px ${activeColor}20`,
-						borderColor: isBottleneck ? activeColor : `${activeColor}40`,
-						animationDuration: simulation.isSimulating ? pulseSpeed : 'none'
+						boxShadow: isFailed ? 'none' : (isBottleneck ? `0 0 15px 2px ${activeColor}40` : `0 0 10px 1px ${activeColor}20`),
+						borderColor: isFailed ? '#4b5563' : (isBottleneck ? activeColor : `${activeColor}40`),
+						animationDuration: simulation.isSimulating && !isFailed ? pulseSpeed : 'none'
 					}}
 				>
 					{Icon ? (
 						<Icon
 							className="w-3/5 h-3/5 z-10 filter drop-shadow-md group-hover:scale-110 transition-transform duration-200"
-							style={{ color: activeColor, filter: `drop-shadow(0 0 6px ${activeColor})` }}
+							style={{ color: activeColor, filter: isFailed ? 'none' : `drop-shadow(0 0 6px ${activeColor})` }}
 						/>
 					) : (
 						<div className="w-3/5 h-3/5 bg-[var(--color-border)] rounded-sm opacity-50" /> /* Fallback */
@@ -126,12 +147,33 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 					</div>
 				</div>
 
-				{/* Rate Limit Badge */}
+				{/* Rate Limit Badge (Top Right) */}
 				{(data.rate_limit_rps !== null && data.rate_limit_rps !== '' && data.rate_limit_rps > 0) ? (
 					<div className="absolute -top-2 -right-2 bg-amber-500/90 backdrop-blur text-black text-[8px] font-bold px-1 rounded z-30 shadow-sm border border-black/20" title={`Rate Limited to ${data.rate_limit_rps} RPS`}>
 						{data.rate_limit_rps}/s
 					</div>
 				) : null}
+
+				{/* Phase 3 Telemetry: Latency (Top Left) */}
+				{simulation.isSimulating && latency > 0 && (
+					<div className={`absolute -top-2 -left-2 backdrop-blur text-white text-[8px] font-mono px-1 rounded z-30 shadow-sm border ${latency > 1000 ? 'bg-red-500/90 border-red-400' : (latency > 250 ? 'bg-amber-500/90 border-amber-400 text-black' : 'bg-slate-800/90 border-slate-600')}`} title={`Latency: ${latency > 9000 ? 'INF' : Math.round(latency)}ms`}>
+						{latency > 9000 ? 'INF' : `${Math.round(latency)}ms`}
+					</div>
+				)}
+
+				{/* Phase 3 Telemetry: Queue Depth (Bottom Right) */}
+				{simulation.isSimulating && isQueue && (
+					<div className="absolute -bottom-2 -right-2 bg-blue-900/90 backdrop-blur text-blue-200 text-[8px] font-mono px-1 rounded z-30 shadow-sm border border-blue-500/50" title={`Queue Depth: ${queueDepth} / ${data.queue_size || 5000}`}>
+						Q:{queueDepth}
+					</div>
+				)}
+
+				{/* Phase 3 Telemetry: Dropped Requests (Bottom Left) */}
+				{simulation.isSimulating && droppedRequests > 0 && (
+					<div className="absolute -bottom-2 -left-2 bg-red-600/90 backdrop-blur text-white text-[8px] font-mono px-1 rounded z-30 shadow-sm border border-red-400" title={`Dropped Requests: ${droppedRequests}`}>
+						Drp:{droppedRequests}
+					</div>
+				)}
 
 				{/* Right Handle */}
 				<Handle

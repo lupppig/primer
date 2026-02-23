@@ -9,8 +9,8 @@ class ComputeActor(ComponentActor):
     def process_tick(self) -> NodeMetrics:
         total_capacity = self.node.capacity_rps * self.node.replicas
         
-        # Calculate component utilization ratio
-        self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else float('inf')
+        # Calculate component utilization ratio (if dead with load, it's 100% maxed instantly)
+        self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else (1.0 if self.metrics.incoming_rps > 0 else 0.0)
         
         # Bound effective RPS by physical capacity
         self.metrics.effective_rps = min(self.metrics.incoming_rps, total_capacity)
