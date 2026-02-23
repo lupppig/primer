@@ -2,6 +2,7 @@ import { useCallback, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactFlow, {
 	Background,
+	BackgroundVariant,
 	Controls,
 	MiniMap,
 	Panel,
@@ -215,19 +216,19 @@ export default function Canvas() {
 						className={`bg-[var(--color-canvas)] ${activeTool === 'text' ? 'cursor-text' : (activeTool === 'draw' ? 'cursor-crosshair' : '')}`}
 						defaultEdgeOptions={{ type: 'traffic', style: { strokeWidth: 2 } }}
 					>
-						<Background color="#2d3139" gap={24} size={1.5} />
+						<Background color="#1f2330" variant={BackgroundVariant.Lines} gap={30} lineWidth={1} />
 						<Controls className="!bg-[var(--color-panel)] !border-[var(--color-border)] !fill-[var(--color-text-main)]" />
 
 						<MiniMap
 							nodeColor={(n) => {
-								if (simulation.isSimulating && simulation.activeBottlenecks.includes(n.id)) return '#e60a15';
-								return '#5048e5';
+								if (simulation.isSimulating && simulation.activeBottlenecks.includes(n.id)) return '#ff3344';
+								return '#3caff6';
 							}}
-							maskColor="rgba(15, 17, 21, 0.7)"
+							maskColor="rgba(9, 10, 15, 0.8)"
 							className="!bg-[var(--color-panel)] !border-[var(--color-border)]"
 						/>
 
-						<Panel position="top-center" className="w-full pointer-events-none mt-2">
+						<Panel position="top-center" className="w-full pointer-events-none mt-4">
 							<div className="flex justify-center w-full">
 								<div className="flex items-center gap-2 bg-[var(--color-panel)] border border-[var(--color-border)] p-1.5 rounded-xl shadow-lg pointer-events-auto">
 									<Button
@@ -281,9 +282,8 @@ export default function Canvas() {
 											value={simulation.targetRps}
 											onChange={(e) => {
 												const val = parseInt(e.target.value);
-												if (!isNaN(val) && val >= 0) {
-													useStore.getState().setTargetRps(val);
-												}
+												// Always call setTargetRps. If the user deleted the text, fallback to 0 safely.
+												useStore.getState().setTargetRps(isNaN(val) ? 0 : Math.max(0, val));
 											}}
 											className="h-8 w-24 bg-[#0f1115] text-center font-mono"
 											min={0}
@@ -361,7 +361,7 @@ export default function Canvas() {
 										initial={{ opacity: 0, x: 20 }}
 										animate={{ opacity: 1, x: 0 }}
 										exit={{ opacity: 0, x: 20 }}
-										className="bg-[var(--color-panel)] border border-red-500/50 p-4 rounded-xl shadow-2xl backdrop-blur-sm pointer-events-auto w-64"
+										className="bg-[#0f111a] border border-[#ff3344]/50 p-4 rounded-xl shadow-[0_0_20px_rgba(255,51,68,0.2)] pointer-events-auto w-64"
 									>
 										<div className="flex items-center gap-2 text-red-400 mb-2">
 											<Activity className="w-4 h-4" />

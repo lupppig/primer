@@ -66,7 +66,7 @@ export default function TrafficEdge({
 			/>
 
 			{/* Animated Traffic Overlay */}
-			{simulation.isSimulating && animated && (
+			{simulation.isSimulating && animated && (data?.rps > 0) && (
 				<>
 					<path
 						d={edgePath}
