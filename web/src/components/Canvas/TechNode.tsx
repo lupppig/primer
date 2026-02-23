@@ -121,7 +121,7 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 								title="Duplicate Node"
 							>
 								<Copy className="w-3 h-3 text-blue-400" />
-								Copy
+								Duplicate
 							</button>
 							<button
 								onClick={() => { deleteNode(id); setMenuOpen(false); }}
@@ -171,10 +171,10 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 
 				{/* Label - visible on hover or when selected */}
 				<div className={`absolute -bottom-6 whitespace-nowrap transition-opacity pointer-events-none z-20 ${selected || simulation.isSimulating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-					<div className="px-1 py-0.5 rounded bg-[#090a0f]/80 backdrop-blur-sm border border-[#1f2330] flex items-center gap-1 shadow-md">
-						<p className="text-[10px] uppercase tracking-wider font-bold text-white/90 drop-shadow-md">{data.label}</p>
+					<div className="px-1 py-0.5 rounded bg-transparent flex items-center gap-1">
+						<p className="text-[8px] uppercase tracking-wider font-semibold text-white/40 drop-shadow-sm">{data.label}</p>
 						{simulation.isSimulating && (
-							<span className={`text-[9px] font-mono px-1 rounded-sm ${isBottleneck ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-[#3caff6]'}`}>
+							<span className={`text-[8px] font-mono px-1 rounded-sm ${isBottleneck ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-[#3caff6]'}`}>
 								{Math.round(effectiveRps)}/s
 							</span>
 						)}
@@ -182,11 +182,11 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				</div>
 
 				{/* Rate Limit Badge */}
-				{data.rate_limit_rps && (
+				{(data.rate_limit_rps !== null && data.rate_limit_rps !== '' && data.rate_limit_rps > 0) ? (
 					<div className="absolute -top-2 -right-2 bg-amber-500/90 backdrop-blur text-black text-[8px] font-bold px-1 rounded z-30 shadow-sm border border-black/20" title={`Rate Limited to ${data.rate_limit_rps} RPS`}>
 						{data.rate_limit_rps}/s
 					</div>
-				)}
+				) : null}
 
 				{/* Right Handle */}
 				<Handle
