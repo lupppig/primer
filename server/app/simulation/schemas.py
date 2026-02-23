@@ -6,6 +6,7 @@ class SimNode(BaseModel):
     type: str # "api", "db", "cache", "queue", "k8s", etc.
     capacity_rps: float = Field(default=1000.0, ge=0)
     base_latency_ms: float = Field(default=50.0, ge=0)
+    rate_limit_rps: Optional[float] = None
     replicas: int = Field(default=1, ge=1)
     queue_size: int = Field(default=0, ge=0)
     resources: dict = Field(default_factory=dict)

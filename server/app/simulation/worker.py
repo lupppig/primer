@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from app.core.nats import get_nats_js, nats_client
-from app.simulation.engine import SimulationEngine
+from app.simulation.engine import Simulator
 from app.simulation.schemas import SimulationInput
 from pydantic import ValidationError
 from nats.errors import TimeoutError
@@ -16,6 +16,9 @@ async def start_simulation_worker():
     """
     js = await get_nats_js()
     logger.info("Simulation Worker started. Listening for jobs on 'simulation.requests'...")
+    
+    # State tracking per active WebSocket connection 
+    simulators = {}
     
     # We use a pull subscription to easily process messages one by one
     try:
@@ -42,12 +45,16 @@ async def start_simulation_worker():
                         await msg.ack()
                         continue
                         
-                    # Compute the logic
-                    # Pass the current tick info inside the input for stateless processing
-                    result = SimulationEngine.compute_tick(
+                    # Maintain stateful Simulator instance per client session
+                    if reply_topic not in simulators:
+                        simulators[reply_topic] = Simulator(session_id=reply_topic)
+                        
+                    simulator = simulators[reply_topic]
+                        
+                    # Compute the logic through the stateful engine
+                    result = simulator.process_tick(
                         graph=sim_input.graph,
-                        incoming_rps=sim_input.incoming_rps, 
-                        current_time=payload.get("current_tick", 0)  # Extract tick from generic payload or add to schema
+                        incoming_rps=sim_input.incoming_rps 
                     )
                     
                     # Publish result back

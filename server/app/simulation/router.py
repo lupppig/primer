@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.core.nats import get_nats_js
 
 from app.simulation.schemas import SimulationInput
-from app.simulation.engine import SimulationEngine
+from app.simulation.engine import Simulator
 from app.core.exceptions import ValidationException
 import logging
 
@@ -23,8 +23,9 @@ async def run_simulation_sync(sim_input: SimulationInput):
     Ideal for lightweight analysis.
     """
     try:
-        # Currently defaults to tick 0
-        result = SimulationEngine.compute_tick(sim_input.graph, sim_input.incoming_rps)
+        # For sync single-shot runs, instantiate an ephemeral simulator
+        simulator = Simulator(session_id="sync_run")
+        result = simulator.process_tick(sim_input.graph, sim_input.incoming_rps)
         return result
     except ValueError as e:
         raise ValidationException(str(e))
