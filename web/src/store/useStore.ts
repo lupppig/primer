@@ -38,6 +38,7 @@ type AppState = {
 	activeTool: string;
 	setActiveTool: (tool: string) => void;
 	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => void;
+	deleteNode: (id: string) => void;
 	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => void;
 };
 
@@ -75,6 +76,12 @@ export const useStore = create<AppState>((set, get) => ({
 		const updatedNodes = state.nodes.map(n => ({ ...n, selected: false }));
 
 		set({ nodes: [...updatedNodes, newNode] });
+	},
+	deleteNode: (id: string) => {
+		set(state => ({
+			nodes: state.nodes.filter(n => n.id !== id),
+			edges: state.edges.filter(e => e.source !== id && e.target !== id)
+		}));
 	},
 	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => {
 		set(state => ({

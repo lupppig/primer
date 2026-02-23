@@ -1,5 +1,6 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
-import { Copy } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
 import { useStore } from '../../store/useStore';
 
@@ -11,6 +12,14 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 
 	const simulation = useStore(state => state.simulation);
 	const duplicateNode = useStore(state => state.duplicateNode);
+	const deleteNode = useStore(state => state.deleteNode);
+	const [menuOpen, setMenuOpen] = useState(false);
+
+	// Auto-close menu if the node is deselected
+	useEffect(() => {
+		if (!selected) setMenuOpen(false);
+	}, [selected]);
+
 	const isBottleneck = simulation.isSimulating && simulation.activeBottlenecks.includes(id);
 	const activeColor = isBottleneck ? '#ff3344' : color;
 
@@ -39,18 +48,32 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				handleStyle={{ width: 4, height: 4, border: 'none', borderRadius: '1px' }}
 				lineStyle={{ border: '1px solid var(--color-primary)' }}
 			/>
-			<div className="relative group w-full h-full min-w-[44px] min-h-[44px] flex flex-col items-center justify-center cursor-pointer">
-				{/* Duplicate Action Button */}
-				{(selected || simulation.isSimulating === false) && (
+			<div
+				className="relative group w-full h-full min-w-[44px] min-h-[44px] flex flex-col items-center justify-center cursor-pointer"
+				onClick={() => setMenuOpen(!menuOpen)}
+			>
+				{/* Dropdown Action Menu */}
+				{menuOpen && !simulation.isSimulating && (
 					<div
-						className={`absolute -top-8 right-0 transition-opacity z-30 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+						className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 flex bg-[#0f111a] border border-[#2a2f40] rounded-lg shadow-2xl p-1 gap-1"
+						onClick={(e) => e.stopPropagation()}
 					>
 						<button
-							onClick={(e) => { e.stopPropagation(); duplicateNode(id); }}
-							className="bg-[#1f2330] hover:bg-[var(--color-primary)] text-white p-1 rounded-md shadow-lg border border-[#2a2f40] pointer-events-auto transition-colors"
+							onClick={() => { duplicateNode(id); setMenuOpen(false); }}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1a1c23] rounded transition-colors whitespace-nowrap"
 							title="Duplicate Node"
 						>
-							<Copy className="w-3 h-3" />
+							<Copy className="w-3.5 h-3.5" />
+							Duplicate
+						</button>
+						<div className="w-px bg-[#2a2f40] my-1" />
+						<button
+							onClick={() => { deleteNode(id); setMenuOpen(false); }}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-400/10 rounded transition-colors whitespace-nowrap"
+							title="Delete Node"
+						>
+							<Trash2 className="w-3.5 h-3.5" />
+							Delete
 						</button>
 					</div>
 				)}
