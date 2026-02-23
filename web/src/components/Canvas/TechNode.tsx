@@ -13,7 +13,13 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const simulation = useStore(state => state.simulation);
 	const duplicateNode = useStore(state => state.duplicateNode);
 	const deleteNode = useStore(state => state.deleteNode);
+	const updateNodeData = useStore(state => state.updateNodeData);
 	const [menuOpen, setMenuOpen] = useState(false);
+
+	// Ensure fields have defaults for UI binding
+	const capacityRps = data.capacity_rps ?? 1000;
+	const baseLatencyMs = data.base_latency_ms ?? 10;
+	const rateLimitRps = data.rate_limit_rps ?? '';
 
 	// Auto-close menu if the node is deselected
 	useEffect(() => {
@@ -55,26 +61,60 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				{/* Dropdown Action Menu */}
 				{menuOpen && !simulation.isSimulating && (
 					<div
-						className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 flex bg-[#0f111a] border border-[#2a2f40] rounded-lg shadow-2xl p-1 gap-1"
+						className="absolute -top-40 left-1/2 -translate-x-1/2 z-50 flex flex-col bg-[#0f111a] border border-[#2a2f40] rounded-lg shadow-2xl p-2 gap-2 min-w-[160px]"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<button
-							onClick={() => { duplicateNode(id); setMenuOpen(false); }}
-							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1a1c23] rounded transition-colors whitespace-nowrap"
-							title="Duplicate Node"
-						>
-							<Copy className="w-3.5 h-3.5" />
-							Duplicate
-						</button>
-						<div className="w-px bg-[#2a2f40] my-1" />
-						<button
-							onClick={() => { deleteNode(id); setMenuOpen(false); }}
-							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-400/10 rounded transition-colors whitespace-nowrap"
-							title="Delete Node"
-						>
-							<Trash2 className="w-3.5 h-3.5" />
-							Delete
-						</button>
+						{/* Configuration Inputs */}
+						<div className="flex flex-col gap-1.5 pb-2 border-b border-[#2a2f40]">
+							<div className="flex justify-between items-center text-[10px] text-white">
+								<span className="text-[var(--color-text-muted)]">Capacity (RPS)</span>
+								<input
+									type="number"
+									className="bg-[#1f2330] rounded px-1.5 py-0.5 outline-none w-16 text-right"
+									value={capacityRps}
+									onChange={(e) => updateNodeData(id, { capacity_rps: Number(e.target.value) })}
+								/>
+							</div>
+							<div className="flex justify-between items-center text-[10px] text-white">
+								<span className="text-[var(--color-text-muted)]">Latency (ms)</span>
+								<input
+									type="number"
+									className="bg-[#1f2330] rounded px-1.5 py-0.5 outline-none w-16 text-right"
+									value={baseLatencyMs}
+									onChange={(e) => updateNodeData(id, { base_latency_ms: Number(e.target.value) })}
+								/>
+							</div>
+							<div className="flex justify-between items-center text-[10px] text-white">
+								<span className="text-[var(--color-text-muted)]">Rate Limit</span>
+								<input
+									type="number"
+									placeholder="None"
+									className="bg-[#1f2330] rounded px-1.5 py-0.5 outline-none w-16 text-right placeholder-[#2a2f40]"
+									value={rateLimitRps}
+									onChange={(e) => updateNodeData(id, { rate_limit_rps: e.target.value === '' ? null : Number(e.target.value) })}
+								/>
+							</div>
+						</div>
+
+						{/* Actions */}
+						<div className="flex flex-col gap-1">
+							<button
+								onClick={() => { duplicateNode(id); setMenuOpen(false); }}
+								className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1a1c23] rounded transition-colors w-full"
+								title="Duplicate Node"
+							>
+								<Copy className="w-3.5 h-3.5 text-blue-400" />
+								Duplicate
+							</button>
+							<button
+								onClick={() => { deleteNode(id); setMenuOpen(false); }}
+								className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-semibold text-red-400 hover:bg-red-400/10 rounded transition-colors w-full"
+								title="Delete Node"
+							>
+								<Trash2 className="w-3.5 h-3.5" />
+								Delete
+							</button>
+						</div>
 					</div>
 				)}
 
