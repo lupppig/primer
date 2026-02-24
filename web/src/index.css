@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-	--color-canvas: #0f1115;
-	--color-panel: #1a1d24;
-	--color-border: #2d3139;
-	--color-primary: #5048e5;
-	--color-primary-hover: #4338ca;
+	--color-canvas: #090a0f; /* Deep space dark canvas */
+	--color-panel: #11131a;  /* Slightly lighter for panels */
+	--color-border: #1f2330; /* Subtle borders */
+	--color-primary: #3caff6;
+	--color-primary-hover: #298dce;
 	--color-accent: #3caff6;
-	--color-danger: #e60a15;
-	--color-text-main: #ffffff;
-	--color-text-muted: #9ca3af;
+	--color-danger: #ff3344; /* Neon alert red */
+	--color-text-main: #e2e8f0;
+	--color-text-muted: #64748b;
 	--font-sans: "Inter", system-ui, sans-serif;
 	--font-heading: "Space Grotesk", system-ui, sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -52,4 +52,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
 	@apply bg-[#4b5563];
+}
+@keyframes flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-flow-dash {
+  animation: flow 1s linear infinite reverse;
 }

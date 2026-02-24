@@ -20,7 +20,8 @@ class ComputeActor(ComponentActor):
             self.metrics.effective_rps = min(self.metrics.effective_rps, self.node.rate_limit_rps)
 
         # Mathematical latency curve scaling exponentially to infinity as utilization nears 1.0 (100%)
-        if self.metrics.utilization < 1.0:
+        # Mathematical latency curve scaling exponentially to infinity as utilization nears 1.0 (100%)
+        if self.metrics.utilization <= 1.0:
             self.metrics.latency = self.node.base_latency_ms / max(1.0 - self.metrics.utilization, 0.001)
             self.metrics.bottleneck = False
         else:

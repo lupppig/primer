@@ -21,13 +21,19 @@ interface MiniCanvasPreviewProps {
 }
 
 export function MiniCanvasPreview({ nodes, edges }: MiniCanvasPreviewProps) {
+	// Sanitize edges to prevent React Flow crash on null markerEnd
+	const sanitizedEdges = (edges || []).map((edge: any) => ({
+		...edge,
+		markerEnd: edge.markerEnd || undefined
+	}));
+
 	// A strictly read-only, non-interactive instance of React Flow
 	// Used only for visual thumbnails on the dashboard
 	return (
 		<div className="w-full h-full pointer-events-none">
 			<ReactFlow
 				nodes={nodes}
-				edges={edges}
+				edges={sanitizedEdges}
 				nodeTypes={nodeTypes}
 				edgeTypes={edgeTypes}
 				fitView

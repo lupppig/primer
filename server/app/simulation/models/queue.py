@@ -28,7 +28,7 @@ class QueueActor(ComponentActor):
         self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else float('inf')
         
         # Latency factoring in wait time in the buffer
-        if self.metrics.utilization < 1.0 and total_capacity > 0:
+        if self.metrics.utilization <= 1.0 and total_capacity > 0:
             base_latency = self.node.base_latency_ms / max(1.0 - self.metrics.utilization, 0.001)
             queue_wait_penalty = (self.metrics.queue_depth / total_capacity) * 1000 # wait time in ms
             self.metrics.latency = base_latency + queue_wait_penalty

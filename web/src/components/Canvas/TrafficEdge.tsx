@@ -60,7 +60,7 @@ export default function TrafficEdge({
 			<BaseEdge
 				id={id}
 				path={edgePath}
-				markerEnd={markerEnd}
+				markerEnd={markerEnd || undefined}
 				style={{
 					...style,
 					stroke: protocol === 'WebSocket' && !simulation.isSimulating ? '#5048e580' : '#2a2f40',

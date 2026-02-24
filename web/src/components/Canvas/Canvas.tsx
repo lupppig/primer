@@ -38,7 +38,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 });
 
 export default function Canvas() {
-	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool } = useStore();
+	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool, undo, redo } = useStore();
 	const { currentDesign, saveDesign, renameDesign } = useDesignStore();
 	const { user, setAuthModalOpen } = useAuthStore();
 	const navigate = useNavigate();
@@ -100,22 +100,55 @@ export default function Canvas() {
 			return;
 		}
 
-		setIsSaving(true);
-		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+		// Throttle saves to 2 seconds
+		if (saveTimeoutRef.current) {
+			clearTimeout(saveTimeoutRef.current);
+		}
 
 		saveTimeoutRef.current = setTimeout(async () => {
+			setIsSaving(true);
 			try {
-				await saveDesign(currentDesign.id, nodes, edges, { targetRps: simulation.targetRps }, currentDesign.version);
-				lastSavedData.current = { nodes: currentNodesStr, edges: currentEdgesStr, settings: currentSettingsStr };
+				await saveDesign(
+					currentDesign.id,
+					nodes,
+					edges,
+					{ targetRps: simulation.targetRps },
+					currentDesign.version
+				);
+				lastSavedData.current = {
+					nodes: currentNodesStr,
+					edges: currentEdgesStr,
+					settings: currentSettingsStr
+				};
+			} catch (err) {
+				console.error("Auto-save failed", err);
 			} finally {
 				setIsSaving(false);
 			}
-		}, 1500); // 1.5s debounce
+		}, 2000);
+	}, [nodes, edges, currentDesign, saveDesign, simulation.targetRps, simulation.isSimulating]);
 
-		return () => {
-			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+	// --- Keyboard Shortcuts (Undo/Redo) ---
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.ctrlKey || e.metaKey) {
+				if (e.key.toLowerCase() === 'z') {
+					e.preventDefault();
+					if (e.shiftKey) {
+						redo();
+					} else {
+						undo();
+					}
+				} else if (e.key.toLowerCase() === 'y') {
+					e.preventDefault();
+					redo();
+				}
+			}
 		};
-	}, [nodes, edges, currentDesign, saveDesign, simulation.isSimulating]);
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [undo, redo]);
 
 	const onDragOver = useCallback((event: React.DragEvent) => {
 		event.preventDefault();
@@ -201,7 +234,7 @@ export default function Canvas() {
 				<div className="w-full h-full" onDragOver={onDragOver} onDrop={onDrop}>
 					<ReactFlow
 						nodes={nodes}
-						edges={edges}
+						edges={edges.map(e => ({ ...e, markerEnd: e.markerEnd || undefined }))}
 						nodeTypes={nodeTypes}
 						edgeTypes={edgeTypes}
 						onNodesChange={onNodesChange}

@@ -1,5 +1,5 @@
 import {
-	SiKubernetes, SiDocker, SiNvidia, SiAmazonec2, SiGooglecloud, SiLinux,
+	SiKubernetes, SiDocker, SiAmazonec2, SiGooglecloud, SiLinux,
 	SiPostgresql, SiMysql, SiAmazonrds,
 	SiMongodb, SiRedis, SiApachecassandra, SiAmazondynamodb, SiFirebase,
 	SiApachekafka, SiRabbitmq, SiAmazonsqs,
@@ -32,7 +32,6 @@ export const COMPONENT_CATEGORIES = [
 		items: [
 			{ type: 'Kubernetes', icon: SiKubernetes, color: '#326CE5' },
 			{ type: 'Docker', icon: SiDocker, color: '#2496ED' },
-			{ type: 'NVIDIA GPU', icon: SiNvidia, color: '#76B900' },
 			{ type: 'AWS EC2', icon: SiAmazonec2, color: '#FF9900' },
 			{ type: 'GCP Compute Engine', icon: SiGooglecloud, color: '#4285F4' },
 			{ type: 'Azure VM', icon: VscAzure, color: '#0089D6' },
@@ -137,11 +136,22 @@ export const COMPONENT_CATEGORIES = [
 		]
 	},
 	{
+		name: 'Generic Infrastructure',
+		items: [
+			{ type: 'Generic Service', icon: Cuboid, color: '#6366f1' },
+			{ type: 'Custom Cache', icon: Database, color: '#f43f5e' },
+			{ type: 'Web Server', icon: LayoutTemplate, color: '#0ea5e9' },
+			{ type: 'Database Proxy', icon: Database, color: '#3b82f6' },
+			{ type: 'App Server', icon: Network, color: '#8b5cf6' },
+			{ type: 'Event Bus', icon: MessageSquare, color: '#f97316' },
+			{ type: 'Internal Messaging', icon: Repeat, color: '#10b981' },
+		]
+	},
+	{
 		name: 'Generic Shapes',
 		items: [
 			{ type: 'Text Note', icon: FileText, color: '#9ca3af' },
 			{ type: 'Custom Group', icon: Cuboid, color: '#9ca3af' },
-			{ type: 'Cube', icon: Cuboid, color: '#9ca3af' },
 			{ type: 'Rectangle', icon: LayoutTemplate, color: '#9ca3af' },
 			{ type: 'Cylinder', icon: Database, color: '#9ca3af' },
 			{ type: 'Straight Line', icon: Minus, color: '#9ca3af' },

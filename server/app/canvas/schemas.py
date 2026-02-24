@@ -29,6 +29,13 @@ class EdgeSchema(BaseModel):
     id: str
     source: str
     target: str
+    sourceHandle: Optional[str] = None
+    targetHandle: Optional[str] = None
+    type: Optional[str] = None
+    animated: Optional[bool] = None
+    style: Optional[Dict[str, Any]] = None
+    markerEnd: Optional[Any] = None
+    data: Optional[Dict[str, Any]] = None
     traffic_percent: Optional[float] = 1.0
 
 class DesignBase(BaseModel):

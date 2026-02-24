@@ -1,195 +1,213 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
-import { Copy, Trash2, Flame } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Copy, Trash2, Flame, AlertTriangle, Layers, Zap } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
 import { useStore } from '../../store/useStore';
 
 export default function TechNode({ id, data, selected }: { id: string, data: any, selected?: boolean }) {
-	const componentType = data.originalType || data.label;
-	const TechEntry = TECH_COMPONENTS.find((t) => t.type === componentType);
-	const Icon = TechEntry?.icon;
+	const componentType = (data.originalType || data.label || '').toLowerCase();
+	const [isEditing, setIsEditing] = useState(false);
+	const [labelValue, setLabelValue] = useState(data.label || 'Service');
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	// Fuzzy matching for icons
+	let TechEntry = TECH_COMPONENTS.find((t) => t.type.toLowerCase() === componentType);
+	if (!TechEntry) {
+		TechEntry = TECH_COMPONENTS.find((t) => {
+			const type = t.type.toLowerCase();
+			return componentType.includes(type) || type.includes(componentType);
+		});
+	}
+
+	const Icon = TechEntry?.icon || Layers;
 	const color = TechEntry?.color || '#3caff6';
 
 	const simulation = useStore(state => state.simulation);
 	const duplicateNode = useStore(state => state.duplicateNode);
 	const deleteNode = useStore(state => state.deleteNode);
 	const toggleNodeFailure = useStore(state => state.toggleNodeFailure);
-	const [menuOpen, setMenuOpen] = useState(false);
+	const updateNodeData = useStore(state => state.updateNodeData);
 
-	// Auto-close menu if the node is deselected
 	useEffect(() => {
-		if (!selected) setMenuOpen(false);
+		if (!selected) {
+			setIsEditing(false);
+		}
 	}, [selected]);
+
+	useEffect(() => {
+		if (isEditing && inputRef.current) {
+			inputRef.current.focus();
+			inputRef.current.select();
+		}
+	}, [isEditing]);
 
 	const isFailed = (simulation.chaosNodes || []).includes(id);
 	const isBottleneck = simulation.isSimulating && (simulation.activeBottlenecks || []).includes(id);
-	const activeColor = isFailed ? '#4b5563' : (isBottleneck ? '#ff3344' : color);
 
-	// Node metrics during simulation
+	// RED THEMED FAILURE/BOTTLENECK
+	const statusColor = isFailed || isBottleneck ? '#ef4444' : color;
+	const borderColor = isFailed || isBottleneck ? '#ef4444' : (selected ? color : '#2a2f40');
+
 	const nodeMetrics = simulation.isSimulating ? (simulation.nodeMetrics[id] || {}) : {};
-	const effectiveRps = nodeMetrics.effective_rps || 0;
 	const utilization = nodeMetrics.utilization || 0;
-	const queueDepth = nodeMetrics.queue_depth || 0;
-	const droppedRequests = nodeMetrics.dropped_requests || 0;
+	const effectiveRps = nodeMetrics.effective_rps || 0;
 	const latency = nodeMetrics.latency || 0;
 
-	const isQueue = ['queue', 'kafka', 'rabbitmq', 'sqs'].some(q => componentType.toLowerCase().includes(q));
+	const handleRename = () => {
+		updateNodeData(id, { label: labelValue });
+		setIsEditing(false);
+	};
 
-	// Dynamic pulse speed based on network utilization
-	let pulseSpeed = '2s';
-	if (simulation.isSimulating) {
-		const duration = Math.max(0.3, 2.0 - utilization * 1.7);
-		pulseSpeed = `${duration}s`;
-	}
+	// Determine component category for specialized metrics
+	const isDb = ['db', 'postgres', 'sql', 'mongo', 'rds', 'cassandra', 'database'].some(d => componentType.includes(d));
+	const isCache = ['redis', 'memcached', 'cache'].some(c => componentType.includes(c));
+	const isLb = ['elb', 'load balancer', 'nginx', 'ha', 'gateway', 'proxy'].some(l => componentType.includes(l));
+	const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => componentType.includes(q));
 
-	// Base classes for handles to handle hover and selection states
 	const handleClasses = `w-2 h-2 rounded-full border border-white/20 bg-[var(--color-panel)] transition-all duration-200 hover:scale-150 hover:bg-[var(--color-primary)] active:bg-[var(--color-primary)] z-10 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`;
 
 	return (
 		<>
 			<NodeResizer
-				color="var(--color-primary)"
-				isVisible={selected}
-				minWidth={44}
-				minHeight={44}
-				handleStyle={{ width: 4, height: 4, border: 'none', borderRadius: '1px' }}
-				lineStyle={{ border: '1px solid var(--color-primary)' }}
+				color={statusColor}
+				isVisible={selected && !isEditing}
+				minWidth={180}
+				minHeight={80}
+				handleStyle={{ width: 6, height: 6, border: 'none', borderRadius: '2px' }}
 			/>
-			<div
-				className="relative group w-full h-full min-w-[44px] min-h-[44px] flex flex-col items-center justify-center cursor-pointer"
-				onClick={() => setMenuOpen(!menuOpen)}
-			>
-				{/* Dropdown Action Menu */}
-				{menuOpen && (
-					<div
-						className="absolute -top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col bg-[#0f111a]/95 backdrop-blur-md border border-[#2a2f40] rounded shadow-2xl p-1 gap-1 min-w-[120px]"
-						onClick={(e) => e.stopPropagation()}
-					>
-						{/* Actions */}
-						<div className="flex flex-col gap-1">
-							{/* Chaos Action (Only relevant during simulation, or toggles state for when it starts) */}
-							<button
-								onClick={() => { toggleNodeFailure(id); setMenuOpen(false); }}
-								className={`flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold rounded transition-colors w-full ${isFailed ? 'text-green-400 hover:bg-green-500/10' : 'text-orange-400 hover:bg-orange-500/10'}`}
-								title={isFailed ? "Recover Node" : "Fail Node"}
-							>
-								<Flame className="w-3 h-3" />
-								{isFailed ? "Recover" : "Fail Node"}
-							</button>
 
-							{!simulation.isSimulating && (
-								<>
-									<button
-										onClick={() => { duplicateNode(id); setMenuOpen(false); }}
-										className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1a1c23] rounded transition-colors w-full"
-										title="Duplicate Node"
-									>
-										<Copy className="w-3 h-3 text-blue-400" />
-										Duplicate
-									</button>
-									<button
-										onClick={() => { deleteNode(id); setMenuOpen(false); }}
-										className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-red-400 hover:bg-red-500/10 rounded transition-colors w-full"
-										title="Delete Node"
-									>
-										<Trash2 className="w-3 h-3" />
-										Delete
-									</button>
-								</>
+			<div
+				className={`relative group w-full h-full bg-[#0f111a]/95 backdrop-blur-sm border-2 rounded-xl shadow-2xl transition-all duration-300 flex flex-col overflow-hidden ${isFailed ? 'grayscale-[0.8] opacity-80' : ''}`}
+				style={{ borderColor: borderColor, boxShadow: isBottleneck || isFailed ? '0 0 20px -5px #ef444460' : (selected ? `0 0 15px -5px ${color}40` : 'none') }}
+				onDoubleClick={() => setIsEditing(true)}
+			>
+				{/* Top Handle */}
+				<Handle type="target" position={Position.Top} id="top" className={handleClasses} />
+				<Handle type="target" position={Position.Left} id="left" className={handleClasses} />
+
+				{/* Header Section */}
+				<div className="p-3 border-b border-[#2a2f40]/50 flex items-center justify-between bg-white/[0.02]">
+					<div className="flex items-center gap-2 overflow-hidden">
+						<div
+							className="p-1.5 rounded-lg flex items-center justify-center shrink-0"
+							style={{ backgroundColor: `${statusColor}15`, color: statusColor }}
+						>
+							<Icon size={18} />
+						</div>
+
+						<div className="flex flex-col min-w-0">
+							{isEditing ? (
+								<input
+									ref={inputRef}
+									className="bg-[#1a1c2e] text-[11px] font-bold text-white px-1 py-0.5 rounded outline-none border border-blue-500/50 w-full"
+									value={labelValue}
+									onChange={(e) => setLabelValue(e.target.value)}
+									onBlur={handleRename}
+									onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+								/>
+							) : (
+								<span className="text-[11px] font-bold text-slate-100 truncate uppercase tracking-tight">
+									{data.label}
+								</span>
 							)}
+							<span className="text-[8px] text-slate-500 uppercase font-medium truncate tracking-widest">
+								{TechEntry?.type || 'Node'}
+							</span>
 						</div>
 					</div>
-				)}
 
-				{/* Top Handle */}
-				<Handle
-					type="target"
-					position={Position.Top}
-					id="top"
-					className={handleClasses}
-				/>
-				{/* Left Handle */}
-				<Handle
-					type="target"
-					position={Position.Left}
-					id="left"
-					className={handleClasses}
-				/>
-
-				<div
-					className={`w-full h-full rounded-lg flex items-center justify-center relative transition-all duration-300 bg-[#0f111a] border border-[#2a2f40] ${simulation.isSimulating && !isFailed ? 'animate-pulse' : ''} ${isFailed ? 'opacity-50 grayscale' : ''}`}
-					style={{
-						// Solid background, neon border, and box-shadow glow
-						boxShadow: isFailed ? 'none' : (isBottleneck ? `0 0 15px 2px ${activeColor}40` : `0 0 10px 1px ${activeColor}20`),
-						borderColor: isFailed ? '#4b5563' : (isBottleneck ? activeColor : `${activeColor}40`),
-						animationDuration: simulation.isSimulating && !isFailed ? pulseSpeed : 'none'
-					}}
-				>
-					{Icon ? (
-						<Icon
-							className="w-3/5 h-3/5 z-10 filter drop-shadow-md group-hover:scale-110 transition-transform duration-200"
-							style={{ color: activeColor, filter: isFailed ? 'none' : `drop-shadow(0 0 6px ${activeColor})` }}
+					<div className="flex items-center gap-1.5 shrink-0 ml-2">
+						{isBottleneck && <AlertTriangle size={12} className="text-red-500 animate-pulse" />}
+						<div
+							className={`size-1.5 rounded-full ${isFailed || isBottleneck ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
 						/>
+					</div>
+				</div>
+
+				{/* Metrics Content */}
+				<div className="p-3 flex-1 flex flex-col justify-center gap-2">
+					{!simulation.isSimulating ? (
+						<div className="flex items-center gap-2 text-[9px] text-slate-500 italic opacity-60 uppercase font-mono tracking-tighter">
+							<Zap size={10} /> Ready for simulation
+						</div>
 					) : (
-						<div className="w-3/5 h-3/5 bg-[var(--color-border)] rounded-sm opacity-50" /> /* Fallback */
+						<>
+							{/* Specialized Metrics View */}
+							{isLb ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="Throughput" value={`${Math.round(effectiveRps)} rps`} trend="up" color={statusColor} />
+									<MetricRow label="Latency" value={`${Math.round(latency)}ms`} trend="down" color="#fbbf24" />
+								</div>
+							) : isDb ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="IOPS" value={numberFormat(effectiveRps * 1.5)} color="#10b981" />
+									<MetricRow label="Conns" value={`${Math.round(utilization * 128)}/200`} color="#6366f1" />
+								</div>
+							) : isCache ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="Hit Rate" value={`${Math.round(95 - (utilization * 15))}%`} color="#f43f5e" />
+									<MetricRow label="Memory" value={`${(utilization * 8).toFixed(1)}GB`} color="#ec4899" />
+								</div>
+							) : isQueue ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="Q Depth" value={numberFormat(nodeMetrics.queue_depth || 0)} color="#e879f9" />
+									<MetricRow label="Msg Rate" value={`${Math.round(effectiveRps)}/s`} color="#38bdf8" />
+								</div>
+							) : (
+								/* Default Compute/Service metrics */
+								<div className="flex flex-col gap-1.5">
+									<div>
+										<div className="flex justify-between text-[8px] text-slate-400 mb-0.5 uppercase font-medium">
+											<span>CPU Load</span>
+											<span className={utilization > 0.8 ? 'text-red-400 font-bold' : ''}>{Math.round(utilization * 100)}%</span>
+										</div>
+										<div className="h-1 bg-[#1a1c2e] rounded-full overflow-hidden">
+											<div
+												className="h-full transition-all duration-300"
+												style={{ width: `${utilization * 100}%`, backgroundColor: utilization > 0.8 ? '#ef4444' : color }}
+											/>
+										</div>
+									</div>
+									<div className="flex justify-between items-center text-[9px] font-mono">
+										<span className="text-slate-500 uppercase text-[8px]">Memory</span>
+										<span className="text-slate-300">{(2 + utilization * 4).toFixed(1)} GB</span>
+									</div>
+								</div>
+							)}
+						</>
 					)}
 				</div>
 
-				{/* Label - visible on hover or when selected */}
-				<div className={`absolute -bottom-6 whitespace-nowrap transition-opacity pointer-events-none z-20 ${selected || simulation.isSimulating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-					<div className="px-1 py-0.5 rounded bg-transparent flex items-center gap-1">
-						<p className="text-[8px] uppercase tracking-wider font-semibold text-white/40 drop-shadow-sm">{data.label}</p>
-						{simulation.isSimulating && (
-							<span className={`text-[8px] font-mono px-1 rounded-sm ${isBottleneck ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-[#3caff6]'}`}>
-								{Math.round(effectiveRps)}/s
-							</span>
-						)}
-					</div>
-				</div>
-
-				{/* Rate Limit Badge (Top Right) */}
-				{(data.rate_limit_rps !== null && data.rate_limit_rps !== '' && data.rate_limit_rps > 0) ? (
-					<div className="absolute -top-2 -right-2 bg-amber-500/90 backdrop-blur text-black text-[8px] font-bold px-1 rounded z-30 shadow-sm border border-black/20" title={`Rate Limited to ${data.rate_limit_rps} RPS`}>
-						{data.rate_limit_rps}/s
-					</div>
-				) : null}
-
-				{/* Phase 3 Telemetry: Latency (Top Left) */}
-				{simulation.isSimulating && latency > 0 && (
-					<div className={`absolute -top-2 -left-2 backdrop-blur text-white text-[8px] font-mono px-1 rounded z-30 shadow-sm border ${latency > 1000 ? 'bg-red-500/90 border-red-400' : (latency > 250 ? 'bg-amber-500/90 border-amber-400 text-black' : 'bg-slate-800/90 border-slate-600')}`} title={`Latency: ${latency > 9000 ? 'INF' : Math.round(latency)}ms`}>
-						{latency > 9000 ? 'INF' : `${Math.round(latency)}ms`}
+				{/* Selection/Action Menu Hover */}
+				{selected && !isEditing && (
+					<div className="absolute top-1 right-8 flex items-center gap-1 bg-[#0f111a] border border-[#2a2f40] px-1.5 py-0.5 rounded shadow-xl">
+						<button onClick={() => duplicateNode(id)} className="p-1 hover:text-blue-400 transition-colors text-slate-400" title="Duplicate"><Copy size={11} /></button>
+						<button onClick={() => toggleNodeFailure(id)} className={`p-1 transition-colors ${isFailed ? 'text-green-500' : 'text-orange-500'}`} title={isFailed ? "Recover" : "Chaos"}>
+							<Flame size={11} className={isFailed ? '' : 'animate-bounce'} />
+						</button>
+						<button onClick={() => deleteNode(id)} className="p-1 hover:text-red-500 transition-colors text-slate-400" title="Delete"><Trash2 size={11} /></button>
 					</div>
 				)}
 
-				{/* Phase 3 Telemetry: Queue Depth (Bottom Right) */}
-				{simulation.isSimulating && isQueue && (
-					<div className="absolute -bottom-2 -right-2 bg-blue-900/90 backdrop-blur text-blue-200 text-[8px] font-mono px-1 rounded z-30 shadow-sm border border-blue-500/50" title={`Queue Depth: ${queueDepth} / ${data.queue_size || 5000}`}>
-						Q:{queueDepth}
-					</div>
-				)}
-
-				{/* Phase 3 Telemetry: Dropped Requests (Bottom Left) */}
-				{simulation.isSimulating && droppedRequests > 0 && (
-					<div className="absolute -bottom-2 -left-2 bg-red-600/90 backdrop-blur text-white text-[8px] font-mono px-1 rounded z-30 shadow-sm border border-red-400" title={`Dropped Requests: ${droppedRequests}`}>
-						Drp:{droppedRequests}
-					</div>
-				)}
-
-				{/* Right Handle */}
-				<Handle
-					type="source"
-					position={Position.Right}
-					id="right"
-					className={handleClasses}
-				/>
-				{/* Bottom Handle */}
-				<Handle
-					type="source"
-					position={Position.Bottom}
-					id="bottom"
-					className={handleClasses}
-				/>
+				{/* Bottom Handles */}
+				<Handle type="source" position={Position.Right} id="right" className={handleClasses} />
+				<Handle type="source" position={Position.Bottom} id="bottom" className={handleClasses} />
 			</div>
 		</>
 	);
+}
+
+function MetricRow({ label, value, color }: { label: string, value: string, trend?: 'up' | 'down', color: string }) {
+	return (
+		<div className="flex justify-between items-center text-[9px] group/row">
+			<span className="text-slate-500 uppercase font-medium text-[8px] tracking-tight">{label}</span>
+			<span className="font-bold font-mono tracking-tighter" style={{ color }}>{value}</span>
+		</div>
+	);
+}
+
+function numberFormat(val: number) {
+	if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+	if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+	return Math.round(val).toString();
 }

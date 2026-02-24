@@ -51,12 +51,10 @@ class Simulator:
         Synchronizes internal Stateful Components against the potentially mutated UI graph.
         Adds new nodes, updates configurations of existing ones, and drops deleted ones.
         """
-        # 1. Clean up deleted nodes
         for node_id in list(self.actors.keys()):
             if node_id not in graph.nodes:
                 del self.actors[node_id]
 
-        # 2. Add or update existing actors
         for node_id, node_data in graph.nodes.items():
             if node_id not in self.actors:
                 # Factory pattern based on component explicit needs
@@ -81,11 +79,9 @@ class Simulator:
                 graph_metrics=GraphMetrics(total_throughput=0.0, max_latency=0.0, bottleneck_nodes=[])
             )
 
-        # 1. Synchronize physical states
         self._sync_actors(graph)
         sorted_nodes = self.topological_sort(graph)
         
-        # 2. Reset transient tick metrics (TPS, drops etc) while preserving Buffer state
         for actor in self.actors.values():
             actor.reset_tick_metrics()
             
@@ -93,7 +89,6 @@ class Simulator:
         for edge in graph.edges:
             adj_list[edge.source].append((edge.target, edge.traffic_percent))
             
-        # 3. Inject baseline load into entrypoints
         start_nodes = [node_id for node_id in sorted_nodes if not any(e.target == node_id for e in graph.edges)]
         if not start_nodes and graph.nodes:
             raise ValueError("Graph has no valid entry points for traffic.")
@@ -106,10 +101,8 @@ class Simulator:
         total_throughput = 0.0
         bottlenecks = []
         
-        # 4. Cascade calculation topologically
         for node_id in sorted_nodes:
             actor = self.actors[node_id]
-            # Polymorphic execution based on concrete Component Type limits
             metrics = actor.process_tick()
             
             if metrics.bottleneck:
@@ -118,12 +111,10 @@ class Simulator:
             if metrics.latency != float('inf') and metrics.latency > max_latency:
                 max_latency = metrics.latency
                 
-            # Fan out successfully mitigated traffic downward to downstream dependents
             for target_id, traffic_pct in adj_list[node_id]:
                 child_incoming = metrics.effective_rps * traffic_pct
                 self.actors[target_id].metrics.incoming_rps += child_incoming
                 
-            # If leaf node, counts toward total successful throughput
             if not adj_list[node_id]:
                 total_throughput += metrics.effective_rps
                 
@@ -133,7 +124,6 @@ class Simulator:
             bottleneck_nodes=bottlenecks
         )
         
-        # Duplicate state safely for serialization payload
         nodes_snapshot = {n_id: NodeMetrics(**actor.metrics.model_dump()) for n_id, actor in self.actors.items()}
         
         self.current_time += 1

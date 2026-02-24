@@ -21,6 +21,7 @@ export type SimulationState = {
 	targetRps: number;
 	activeBottlenecks: string[];
 	nodeMetrics: Record<string, any>;
+	chaosNodes: string[];
 };
 
 type AppState = {
@@ -39,8 +40,14 @@ type AppState = {
 	setActiveTool: (tool: string) => void;
 	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => void;
 	deleteNode: (id: string) => void;
-	updateNodeData: (id: string, data: Partial<any>) => void;
+	updateNodeData: (id: string, newData: Partial<any>) => void;
+	toggleNodeFailure: (id: string) => void;
 	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => void;
+	past: { nodes: Node[], edges: Edge[] }[];
+	future: { nodes: Node[], edges: Edge[] }[];
+	undo: () => void;
+	redo: () => void;
+	takeSnapshot: () => void;
 };
 
 // Initial Mock Nodes Removed in favor of empty start
@@ -56,7 +63,57 @@ export const useStore = create<AppState>((set, get) => ({
 		targetRps: 1500, // Default Starting RPS
 		activeBottlenecks: [],
 		nodeMetrics: {},
+		chaosNodes: [],
 	},
+	past: [],
+	future: [],
+
+	takeSnapshot: () => {
+		const { nodes, edges, past } = get();
+		// Max history depth 50
+		const newPast = [...past.slice(-49), { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) }];
+		set({ past: newPast, future: [] });
+	},
+
+	undo: () => {
+		const { nodes, edges, past, future } = get();
+		if (past.length === 0) return;
+
+		const previous = past[past.length - 1];
+		const newPast = past.slice(0, past.length - 1);
+		const newFuture = [{ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) }, ...future.slice(0, 49)];
+
+		set({
+			nodes: previous.nodes,
+			edges: previous.edges,
+			past: newPast,
+			future: newFuture
+		});
+	},
+
+	redo: () => {
+		const { nodes, edges, past, future } = get();
+		if (future.length === 0) return;
+
+		const next = future[0];
+		const newFuture = future.slice(1);
+		const newPast = [...past, { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) }];
+
+		set({
+			nodes: next.nodes,
+			edges: next.edges,
+			past: newPast,
+			future: newFuture
+		});
+	},
+
+	setNodes: (nodes: Node[]) => {
+		set({ nodes });
+	},
+	setEdges: (edges: Edge[]) => {
+		set({ edges });
+	},
+
 	activeTool: 'select',
 	setActiveTool: (tool: string) => {
 		set({ activeTool: tool });
@@ -65,6 +122,8 @@ export const useStore = create<AppState>((set, get) => ({
 		const state = get();
 		const nodeToClone = state.nodes.find(n => n.id === id);
 		if (!nodeToClone) return;
+
+		state.takeSnapshot();
 
 		const newNode = {
 			...nodeToClone,
@@ -79,6 +138,7 @@ export const useStore = create<AppState>((set, get) => ({
 		set({ nodes: [...updatedNodes, newNode] });
 	},
 	deleteNode: (id: string) => {
+		get().takeSnapshot();
 		set(state => ({
 			nodes: state.nodes.filter(n => n.id !== id),
 			edges: state.edges.filter(e => e.source !== id && e.target !== id)
@@ -93,6 +153,51 @@ export const useStore = create<AppState>((set, get) => ({
 			)
 		}));
 	},
+	toggleNodeFailure: (id: string) => {
+		const state = get();
+		const currentChaos = state.simulation.chaosNodes;
+		const isFailed = currentChaos.includes(id);
+		const newChaos = isFailed ? currentChaos.filter(n => n !== id) : [...currentChaos, id];
+
+		set({ simulation: { ...state.simulation, chaosNodes: newChaos } });
+
+		// If actively simulating, force a hot payload update instantly applying the chaos
+		if (ws && ws.readyState === WebSocket.OPEN) {
+			const { nodes, edges } = get();
+			const simNodes: any = {};
+			nodes.forEach(n => {
+				if (n.type !== 'techNode') return;
+				const lbl = (n.data?.label || '').toLowerCase();
+				const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
+
+				// Apply Chaos constraint
+				const effectivelyFailed = newChaos.includes(n.id);
+
+				simNodes[n.id] = {
+					id: n.id,
+					type: isQueue ? 'queue' : 'api',
+					capacity_rps: effectivelyFailed ? 0.0 : (n.data?.capacity_rps ?? 1000), // Chaos cuts capacity
+					base_latency_ms: n.data?.base_latency_ms ?? 10,
+					replicas: effectivelyFailed ? 0 : (n.data?.replicas ?? 1), // And zero-scales replicas
+					queue_size: n.data?.queue_size ?? 5000,
+					rate_limit_rps: n.data?.rate_limit_rps ?? null
+				};
+			});
+			const simEdges = edges
+				.filter(e => simNodes[e.source] && simNodes[e.target]) // Only include edges between valid tech nodes
+				.map(e => ({
+					id: e.id,
+					source: e.source,
+					target: e.target,
+					traffic_percent: 1.0 // 100% fan-out per edge MVP
+				}));
+			const payload = {
+				incoming_rps: get().simulation.targetRps,
+				graph: { nodes: simNodes, edges: simEdges }
+			};
+			ws.send(JSON.stringify(payload));
+		}
+	},
 	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => {
 		set(state => ({
 			edges: state.edges.map(e =>
@@ -103,17 +208,34 @@ export const useStore = create<AppState>((set, get) => ({
 		}));
 	},
 	onNodesChange: (changes: NodeChange[]) => {
+		const { nodes, takeSnapshot } = get();
+		// Only snapshot on discrete changes or when dragging STOPS
+		const isDiscreteChange = changes.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'dimensions');
+		const isPositionEnd = changes.some(c => c.type === 'position' && !c.dragging);
+
+		if (isDiscreteChange || isPositionEnd) {
+			takeSnapshot();
+		}
+
 		set({
-			nodes: applyNodeChanges(changes, get().nodes),
+			nodes: applyNodeChanges(changes, nodes),
 		});
 	},
 	onEdgesChange: (changes: EdgeChange[]) => {
+		const { edges, takeSnapshot } = get();
+		if (changes.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'select')) {
+			takeSnapshot();
+		}
 		set({
-			edges: applyEdgeChanges(changes, get().edges),
+			edges: applyEdgeChanges(changes, edges),
 		});
 	},
 	onConnect: (connection: Connection) => {
-		const isSimulating = get().simulation.isSimulating;
+		const { simulation, edges, takeSnapshot } = get();
+		const isSimulating = simulation.isSimulating;
+
+		takeSnapshot();
+
 		const newEdge = {
 			...connection,
 			type: 'traffic',
@@ -122,24 +244,16 @@ export const useStore = create<AppState>((set, get) => ({
 			data: { protocol: 'HTTP' } // Default protocol
 		};
 		set({
-			edges: addEdge(newEdge, get().edges),
+			edges: addEdge(newEdge, edges),
 		});
-	},
-	setNodes: (nodes: Node[]) => {
-		set({ nodes });
-	},
-	setEdges: (edges: Edge[]) => {
-		set({ edges });
 	},
 	toggleSimulation: () => {
 		const isSimulating = !get().simulation.isSimulating;
 		const { nodes, edges } = get();
 
 		if (isSimulating) {
-			// 1. Convert React Flow payload to FastAPI schema
 			const simNodes: any = {};
 			nodes.forEach(n => {
-				// Only include tech nodes in the simulation
 				if (n.type !== 'techNode') return;
 
 				const lbl = (n.data?.label || '').toLowerCase();
@@ -172,8 +286,6 @@ export const useStore = create<AppState>((set, get) => ({
 				}
 			};
 
-			// 2. Open WebSocket
-			// Hardcode localhost port because Vite proxy doesn't trivially bridge bare WebSockets without wss proxy rules
 			ws = new WebSocket('ws://localhost:8000/api/v1/simulation/ws');
 
 			ws.onopen = () => {
@@ -269,6 +381,7 @@ export const useStore = create<AppState>((set, get) => ({
 				isSimulating,
 				activeBottlenecks: isSimulating ? state.simulation.activeBottlenecks : [],
 				nodeMetrics: isSimulating ? state.simulation.nodeMetrics : {},
+				chaosNodes: isSimulating ? state.simulation.chaosNodes : [], // reset chaos on stop
 			}
 		}));
 	},
