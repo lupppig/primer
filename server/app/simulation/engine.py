@@ -12,7 +12,6 @@ class Simulator:
     """
     def __init__(self, session_id: str):
         self.session_id = session_id
-        # Persisted state map of graph node ID to logical Actor
         self.actors: Dict[str, ComponentActor] = {}
         self.current_time = 0
 
@@ -57,14 +56,11 @@ class Simulator:
 
         for node_id, node_data in graph.nodes.items():
             if node_id not in self.actors:
-                # Factory pattern based on component explicit needs
                 if node_data.type == 'queue':
                     self.actors[node_id] = QueueActor(node_data)
                 else:
                     self.actors[node_id] = ComputeActor(node_data)
             else:
-                # The user might have tweaked base capacity, latency etc in the UI. 
-                # This safely patches it under the hood while preserving buffers.
                 self.actors[node_id].node = node_data
 
     def process_tick(self, graph: SimGraph, incoming_rps: float, load_profile: Optional['LoadProfile'] = None) -> SimulationTickResult:
@@ -72,7 +68,6 @@ class Simulator:
         Executes a single chronological simulation interval (tick).
         Propagates load top-down, computing cascading latency and back-pressure.
         """
-        # Calculate dynamic RPS if a profile is provided
         actual_incoming_rps = incoming_rps
         if load_profile:
             t = self.current_time % load_profile.durationSeconds
@@ -84,16 +79,12 @@ class Simulator:
             if p_type == 'flat':
                 actual_incoming_rps = base
             elif p_type == 'spike':
-                # Linear ramp up and down
                 mid = dur / 2
                 if t < mid:
-                    # Ramp up
                     actual_incoming_rps = base + (peak - base) * (t / mid)
                 else:
-                    # Ramp down
                     actual_incoming_rps = peak - (peak - base) * ((t - mid) / mid)
             elif p_type == 'step':
-                # Jump at halfway
                 actual_incoming_rps = base if t < (dur / 2) else peak
         
         if not graph.nodes:
@@ -132,12 +123,9 @@ class Simulator:
             if metrics.bottleneck:
                 bottlenecks.append(node_id)
                 
-            if metrics.latency != float('inf') and metrics.latency > max_latency:
+            if metrics.latency != 9999.9 and metrics.latency > max_latency:
                 max_latency = metrics.latency
                 
-            # Phase 4: Explicit Traffic Distribution 
-            # We no longer assume 100% full fan-out automatically. Traffic is split
-            # across target edges based explicitly on the edge's configured `traffic_percent` (0.0 to 1.0)
             targets = adj_list[node_id]
             if not targets:
                 total_throughput += metrics.effective_rps
@@ -149,7 +137,7 @@ class Simulator:
                 
         gm = GraphMetrics(
             total_throughput=total_throughput,
-            max_latency=max_latency if max_latency != float('inf') else 9999.9,
+            max_latency=max_latency if max_latency != 9999.9 else 9999.9,
             bottleneck_nodes=bottlenecks
         )
         

@@ -7,6 +7,16 @@ class QueueActor(ComponentActor):
     across discrete simulation ticks. Useful for event queues, Kafka, SQS, etc.
     """
     def process_tick(self) -> NodeMetrics:
+        # 1. Check Circuit Breaker State
+        if self.cb_state == "OPEN":
+            # If the circuit is open, we drop incoming traffic, but we can still process what's in the queue
+            self.metrics.dropped_requests = int(self.metrics.incoming_rps)
+            self.metrics.status = "tripped"
+            self.metrics.failure_reason = "Circuit Breaker Open"
+            self._update_circuit_breaker(has_failures=True)
+            # Continue to process the queue buffer even if circuit is open
+            self.metrics.incoming_rps = 0.0 
+        
         total_capacity = self.node.capacity_rps * self.node.replicas
         
         # Buffer newly received events
@@ -14,7 +24,7 @@ class QueueActor(ComponentActor):
         
         # Hard limits & packet drops
         if self.node.queue_size > 0 and self.metrics.queue_depth > self.node.queue_size:
-            self.metrics.dropped_requests = self.metrics.queue_depth - self.node.queue_size
+            self.metrics.dropped_requests += (self.metrics.queue_depth - self.node.queue_size)
             self.metrics.queue_depth = self.node.queue_size
             
         # Our effective throughput for this tick is the amount we can process from the buffer
@@ -25,7 +35,7 @@ class QueueActor(ComponentActor):
         self.metrics.effective_rps = processed_this_tick
         
         # Calculate localized utilization (drain speed vs ingest)
-        self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else float('inf')
+        self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else (1.0 if self.metrics.incoming_rps > 0 else 0.0)
         
         # Latency factoring in wait time in the buffer
         if self.metrics.utilization <= 1.0 and total_capacity > 0:
@@ -35,9 +45,14 @@ class QueueActor(ComponentActor):
             self.metrics.bottleneck = False
             self.metrics.failure_reason = None
         else:
-            self.metrics.latency = float('inf')
+            self.metrics.latency = 9999.9
             self.metrics.bottleneck = True
             self.metrics.failure_reason = "Queue Overflow" if self.metrics.dropped_requests > 0 else "Processing Saturation"
             
         self.metrics.replica_count = self.node.replicas
+        
+        # 2. Update Circuit Breaker State
+        if self.cb_state != "OPEN":
+            self._update_circuit_breaker(has_failures=(self.metrics.dropped_requests > 0))
+
         return self.metrics

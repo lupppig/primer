@@ -1,11 +1,15 @@
 import asyncio
 import json
 import logging
+from datetime import datetime
+from nats.errors import TimeoutError
+from pydantic import ValidationError
+
 from app.core.nats import get_nats_js, nats_client
 from app.simulation.engine import Simulator
 from app.simulation.schemas import SimulationInput
-from pydantic import ValidationError
-from nats.errors import TimeoutError
+from app.simulation.persistence import SimulationRun, SimulationTick
+from app.core.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +21,9 @@ async def start_simulation_worker():
     js = await get_nats_js()
     logger.info("Simulation Worker started. Listening for jobs on 'simulation.requests'...")
     
-    # State tracking per active WebSocket connection 
     simulators = {}
+    active_runs = {} 
     
-    # We use a pull subscription to easily process messages one by one
     try:
         sub = await js.pull_subscribe("simulation.requests", durable="sim_worker")
     except Exception as e:
@@ -29,7 +32,6 @@ async def start_simulation_worker():
 
     while True:
         try:
-            # Check if NATS is still alive, if shutting down, gracefully exit loop
             if nats_client.nc and nats_client.nc.is_closed:
                 break
                 
@@ -39,29 +41,62 @@ async def start_simulation_worker():
                     payload = json.loads(msg.data.decode())
                     sim_input = SimulationInput(**payload)
                     reply_topic = msg.headers.get("reply-to") if msg.headers else None
+                    current_tick = payload.get("current_tick", 0)
                     
                     if not reply_topic:
                         logger.warning("Received simulation request without a 'reply-to' header. Ignoring.")
                         await msg.ack()
                         continue
                         
-                    # Maintain stateful Simulator instance per client session
                     if reply_topic not in simulators:
                         simulators[reply_topic] = Simulator(session_id=reply_topic)
                         
                     simulator = simulators[reply_topic]
-                        
-                    # Compute the logic through the stateful engine
-                    result = simulator.process_tick(
-                        graph=sim_input.graph,
-                        incoming_rps=sim_input.incoming_rps,
-                        load_profile=sim_input.load_profile
-                    )
+
+                    run_id = active_runs.get(reply_topic)
                     
-                    # Publish result back
+                    async with AsyncSessionLocal() as db:
+                        if current_tick == 0 or not run_id:
+                            if sim_input.design_id:
+                                new_run = SimulationRun(
+                                    design_id=sim_input.design_id,
+                                    status="running",
+                                    start_time=datetime.utcnow()
+                                )
+                                db.add(new_run)
+                                await db.commit()
+                                await db.refresh(new_run)
+                                run_id = str(new_run.id)
+                                active_runs[reply_topic] = run_id
+                        
+                        result = simulator.process_tick(
+                            graph=sim_input.graph,
+                            incoming_rps=sim_input.incoming_rps,
+                            load_profile=sim_input.load_profile
+                        )
+                        
+                        if run_id:
+                            tick = SimulationTick(
+                                run_id=run_id,
+                                tick_index=result.time,
+                                metrics=result.model_dump()
+                            )
+                            db.add(tick)
+                            
+                            run = await db.get(SimulationRun, run_id)
+                            if run:
+                                if result.graph_metrics.total_throughput > (run.total_rps_peak or 0):
+                                    run.total_rps_peak = result.graph_metrics.total_throughput
+                                
+                                if not run.avg_latency:
+                                    run.avg_latency = result.graph_metrics.max_latency
+                                else:
+                                    run.avg_latency = (run.avg_latency + result.graph_metrics.max_latency) / 2
+                            
+                            await db.commit()
+                    
                     await js.publish(reply_topic, result.model_dump_json().encode())
                     
-                    # Acknowledge successful processing
                     await msg.ack()
                     
                 except (json.JSONDecodeError, ValidationError) as e:

@@ -30,6 +30,7 @@ export type SimulationState = {
 	loadProfile: LoadProfile;
 	activeBottlenecks: string[];
 	nodeMetrics: Record<string, any>;
+	history: Record<string, any[]>; // For real-time charts
 	chaosNodes: string[];
 	simSpeed: number; // 1 to 10
 };
@@ -43,7 +44,7 @@ type AppState = {
 	onConnect: OnConnect;
 	setNodes: (nodes: Node[]) => void;
 	setEdges: (edges: Edge[]) => void;
-	toggleSimulation: () => void;
+	toggleSimulation: (designId?: string) => void;
 	setSimulationData: (data: Partial<SimulationState>) => void;
 	updateLoadProfile: (profile: Partial<LoadProfile>) => void;
 	setSimSpeed: (speed: number) => void;
@@ -62,7 +63,6 @@ type AppState = {
 	takeSnapshot: () => void;
 };
 
-// Initial Mock Nodes Removed in favor of empty start
 
 let ws: WebSocket | null = null;
 
@@ -75,6 +75,7 @@ export const useStore = create<AppState>((set, get) => ({
 		loadProfile: { type: 'flat', baseRps: 1500, peakRps: 5000, durationSeconds: 30 },
 		activeBottlenecks: [],
 		nodeMetrics: {},
+		history: {},
 		chaosNodes: [],
 		simSpeed: 1.0,
 	},
@@ -145,7 +146,6 @@ export const useStore = create<AppState>((set, get) => ({
 			selected: true
 		};
 
-		// Deselect others
 		const updatedNodes = state.nodes.map(n => ({ ...n, selected: false }));
 
 		set({ nodes: [...updatedNodes, newNode] });
@@ -183,7 +183,6 @@ export const useStore = create<AppState>((set, get) => ({
 
 		set({ simulation: { ...state.simulation, chaosNodes: newChaos } });
 
-		// If actively simulating, force a hot payload update instantly applying the chaos
 		if (ws && ws.readyState === WebSocket.OPEN) {
 			const { nodes, edges } = get();
 			const simNodes: any = {};
@@ -200,9 +199,10 @@ export const useStore = create<AppState>((set, get) => ({
 					type: isQueue ? 'queue' : 'api',
 					capacity_rps: effectivelyFailed ? 0.0 : (n.data?.capacity_rps ?? 1000), // Chaos cuts capacity
 					base_latency_ms: n.data?.base_latency_ms ?? 10,
-					replicas: effectivelyFailed ? 0 : (n.data?.replicas ?? 1), // And zero-scales replicas
+					replicas: effectivelyFailed ? 0 : (n.data?.replicas ?? 1),
 					queue_size: n.data?.queue_size ?? 5000,
-					rate_limit_rps: n.data?.rate_limit_rps ?? null
+					rate_limit_rps: n.data?.rate_limit_rps ?? null,
+					resilience_config: n.data?.resilience_config ?? null
 				};
 			});
 			const simEdges = edges
@@ -232,7 +232,6 @@ export const useStore = create<AppState>((set, get) => ({
 	},
 	onNodesChange: (changes: NodeChange[]) => {
 		const { nodes, takeSnapshot } = get();
-		// Only snapshot on discrete changes or when dragging STOPS
 		const isDiscreteChange = changes.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'dimensions');
 		const isPositionEnd = changes.some(c => c.type === 'position' && !c.dragging);
 
@@ -264,13 +263,13 @@ export const useStore = create<AppState>((set, get) => ({
 			type: 'traffic',
 			animated: isSimulating,
 			style: { stroke: isSimulating ? '#3caff6' : '#5048e5' },
-			data: { protocol: 'HTTP' } // Default protocol
+			data: { protocol: 'HTTP' }
 		};
 		set({
 			edges: addEdge(newEdge, edges),
 		});
 	},
-	toggleSimulation: () => {
+	toggleSimulation: (designId?: string) => {
 		const isSimulating = !get().simulation.isSimulating;
 		const { nodes, edges } = get();
 
@@ -288,7 +287,8 @@ export const useStore = create<AppState>((set, get) => ({
 					base_latency_ms: n.data?.base_latency_ms ?? 10,
 					replicas: n.data?.replicas ?? 1,
 					queue_size: n.data?.queue_size ?? 5000,
-					rate_limit_rps: n.data?.rate_limit_rps ?? null
+					rate_limit_rps: n.data?.rate_limit_rps ?? null,
+					resilience_config: n.data?.resilience_config ?? null
 				};
 			});
 
@@ -302,8 +302,10 @@ export const useStore = create<AppState>((set, get) => ({
 				}));
 
 			const payload = {
+				design_id: designId,
 				incoming_rps: get().simulation.loadProfile.baseRps,
 				load_profile: get().simulation.loadProfile,
+				sim_speed: get().simulation.simSpeed,
 				graph: {
 					nodes: simNodes,
 					edges: simEdges
@@ -324,31 +326,35 @@ export const useStore = create<AppState>((set, get) => ({
 						return;
 					}
 
-					// Parse the telemetry tick
 					set((state) => {
 						const nodeUtils: Record<string, number> = {};
+						const newHistory = { ...state.simulation.history };
+
 						if (data.nodes) {
 							for (const [nodeId, metrics] of Object.entries(data.nodes) as any) {
 								nodeUtils[nodeId] = metrics.utilization;
+								if (!newHistory[nodeId]) newHistory[nodeId] = [];
+								newHistory[nodeId] = [
+									...newHistory[nodeId].slice(-29),
+									{ time: data.time, ...metrics }
+								];
 							}
 						}
 
-						// Update Edge Colors based on target node utilization
+						// Update Edge Colors and Animation Speeds
 						const updatedEdges = state.edges.map(edge => {
 							const targetUtil = nodeUtils[edge.target] || 0;
-							let strokeColor = '#3caff6'; // Base Blue
-							if (targetUtil >= 1.0) {
-								strokeColor = '#ff3344'; // Red Bottleneck
-							} else if (targetUtil >= 0.7) {
-								strokeColor = '#fbbf24'; // Yellow Warning
+							let strokeColor = edge.animated ? '#3caff6' : '#5048e5';
+
+							if (edge.animated) {
+								if (targetUtil >= 1.0) strokeColor = '#ff3344';
+								else if (targetUtil >= 0.7) strokeColor = '#fbbf24';
 							}
 
-							// Calculate edge speed based on source's effective RPS (if available)
 							let simDuration = 1.5;
 							const sourceMetrics = data.nodes ? data.nodes[edge.source] : null;
 							if (sourceMetrics) {
 								const eff_rps = sourceMetrics.effective_rps || 0;
-								// Scale down duration for higher RPS (faster animation)
 								simDuration = Math.max(0.1, 2.0 - (eff_rps / 50000) * 1.9);
 							}
 
@@ -366,6 +372,7 @@ export const useStore = create<AppState>((set, get) => ({
 								totalRps: data.graph_metrics?.total_throughput || 0,
 								activeBottlenecks: data.graph_metrics?.bottleneck_nodes || [],
 								nodeMetrics: data.nodes || {},
+								history: newHistory
 							}
 						};
 					});
@@ -391,7 +398,6 @@ export const useStore = create<AppState>((set, get) => ({
 			}
 		}
 
-		// Animate edges when simulating
 		const newEdges = edges.map((edge) => ({
 			...edge,
 			animated: isSimulating,
@@ -418,7 +424,6 @@ export const useStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			simulation: { ...state.simulation, loadProfile: { ...state.simulation.loadProfile, ...profile } }
 		}));
-		// If simulation is active, hot-reload the payload immediately
 		if (ws && ws.readyState === WebSocket.OPEN) {
 			const { nodes, edges } = get();
 			const simNodes: any = {};
@@ -435,7 +440,8 @@ export const useStore = create<AppState>((set, get) => ({
 					base_latency_ms: n.data?.base_latency_ms ?? 10,
 					replicas: n.data?.replicas ?? 1,
 					queue_size: n.data?.queue_size ?? 5000,
-					rate_limit_rps: n.data?.rate_limit_rps ?? null
+					rate_limit_rps: n.data?.rate_limit_rps ?? null,
+					resilience_config: n.data?.resilience_config ?? null
 				};
 			});
 			const simEdges = edges
@@ -449,6 +455,7 @@ export const useStore = create<AppState>((set, get) => ({
 			const payload = {
 				incoming_rps: get().simulation.loadProfile.baseRps,
 				load_profile: get().simulation.loadProfile,
+				sim_speed: get().simulation.simSpeed,
 				graph: { nodes: simNodes, edges: simEdges }
 			};
 			ws.send(JSON.stringify(payload));

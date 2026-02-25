@@ -1,5 +1,5 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
-import { Copy, Trash2, Flame, AlertTriangle, Layers, Zap } from 'lucide-react';
+import { Copy, Trash2, Flame, AlertTriangle, Layers, Zap, ShieldAlert } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
@@ -44,12 +44,19 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 
 	const isFailed = (simulation.chaosNodes || []).includes(id);
 	const isBottleneck = simulation.isSimulating && (simulation.activeBottlenecks || []).includes(id);
-
-	// RED THEMED FAILURE/BOTTLENECK
-	const statusColor = isFailed || isBottleneck ? '#ef4444' : color;
-	const borderColor = isFailed || isBottleneck ? '#ef4444' : (selected ? color : '#2a2f40');
-
 	const nodeMetrics = simulation.isSimulating ? (simulation.nodeMetrics[id] || {}) : {};
+	const isTripped = nodeMetrics.status === 'tripped';
+	const isDegraded = nodeMetrics.status === 'degraded';
+
+	// RED THEMED FAILURE/BOTTLENECK, ORANGE THEMED CIRCUIT TRIP
+	let statusColor = isFailed || isBottleneck ? '#ef4444' : color;
+	if (isTripped) statusColor = '#f97316'; // Orange for tripped
+	else if (isDegraded) statusColor = '#fbbf24'; // Yellow-Orange for half-open/degraded
+
+	let borderColor = isFailed || isBottleneck ? '#ef4444' : (selected ? color : '#2a2f40');
+	if (isTripped) borderColor = '#f97316';
+	else if (isDegraded) borderColor = '#fbbf24';
+
 	const utilization = nodeMetrics.utilization || 0;
 	const effectiveRps = nodeMetrics.effective_rps || 0;
 	const latency = nodeMetrics.latency || 0;
@@ -79,7 +86,10 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 
 			<div
 				className={`relative group w-full h-full bg-[#0f111a]/95 backdrop-blur-sm border-2 rounded-xl shadow-2xl transition-all duration-300 flex flex-col overflow-hidden ${isFailed ? 'grayscale-[0.8] opacity-80' : ''}`}
-				style={{ borderColor: borderColor, boxShadow: isBottleneck || isFailed ? '0 0 20px -5px #ef444460' : (selected ? `0 0 15px -5px ${color}40` : 'none') }}
+				style={{
+					borderColor: borderColor,
+					boxShadow: isTripped ? '0 0 25px -5px #f9731680' : (isBottleneck || isFailed ? '0 0 20px -5px #ef444460' : (selected ? `0 0 15px -5px ${color}40` : 'none'))
+				}}
 				onDoubleClick={() => setIsEditing(true)}
 			>
 				{/* Top Handle */}
@@ -118,9 +128,10 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 					</div>
 
 					<div className="flex items-center gap-1.5 shrink-0 ml-2">
+						{isTripped && <ShieldAlert size={12} className="text-orange-500 animate-pulse" />}
 						{isBottleneck && <AlertTriangle size={12} className="text-red-500 animate-pulse" />}
 						<div
-							className={`size-1.5 rounded-full ${isFailed || isBottleneck ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
+							className={`size-1.5 rounded-full ${isFailed || isBottleneck ? 'bg-red-500 animate-pulse' : (isTripped ? 'bg-orange-500 animate-pulse' : (isDegraded ? 'bg-yellow-400' : 'bg-green-500'))}`}
 						/>
 					</div>
 				</div>
@@ -211,8 +222,8 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 							<div className="bg-[#0f111a] border border-[#2a2f40] p-3 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex flex-col gap-2">
 								<div className="flex justify-between items-center border-b border-[#2a2f40] pb-1.5 mb-1">
 									<h4 className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">Node Insight</h4>
-									<div className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${nodeMetrics.bottleneck ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-										{nodeMetrics.bottleneck ? 'Congested' : 'Healthy'}
+									<div className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${nodeMetrics.bottleneck ? 'bg-red-500/10 text-red-500' : (isTripped ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500')}`}>
+										{nodeMetrics.bottleneck ? 'Congested' : (isTripped ? 'Tripped' : 'Healthy')}
 									</div>
 								</div>
 

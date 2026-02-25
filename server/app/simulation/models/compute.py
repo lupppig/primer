@@ -7,27 +7,48 @@ class ComputeActor(ComponentActor):
     Used generically for APIs, databases, caches, k8s deployments etc.
     """
     def process_tick(self) -> NodeMetrics:
+        # 1. Check Circuit Breaker State
+        if self.cb_state == "OPEN":
+            self.metrics.effective_rps = 0.0
+            self.metrics.dropped_requests = int(self.metrics.incoming_rps)
+            self.metrics.status = "tripped"
+            self.metrics.latency = 9999.9 # Effectively high latency for a tripped circuit
+            self.metrics.failure_reason = "Circuit Breaker Open"
+            self._update_circuit_breaker(has_failures=True)
+            return self.metrics
+
         total_capacity = self.node.capacity_rps * self.node.replicas
         
-        # Calculate component utilization ratio (if dead with load, it's 100% maxed instantly)
+        # Calculate component utilization ratio
         self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else (1.0 if self.metrics.incoming_rps > 0 else 0.0)
         
         # Bound effective RPS by physical capacity
         self.metrics.effective_rps = min(self.metrics.incoming_rps, total_capacity)
         
+        # Calculate dropped requests if incoming exceeds capacity
+        if self.metrics.incoming_rps > total_capacity:
+            self.metrics.dropped_requests = int(self.metrics.incoming_rps - total_capacity)
+
         # Apply strict rate limits if explicitly configured in node UI
         if self.node.rate_limit_rps is not None:
-            self.metrics.effective_rps = min(self.metrics.effective_rps, self.node.rate_limit_rps)
+            if self.metrics.effective_rps > self.node.rate_limit_rps:
+                self.metrics.dropped_requests += int(self.metrics.effective_rps - self.node.rate_limit_rps)
+                self.metrics.effective_rps = self.node.rate_limit_rps
 
-        # Mathematical latency curve scaling exponentially to infinity as utilization nears 1.0 (100%)
+        # Mathematical latency curve
         if self.metrics.utilization <= 1.0:
             self.metrics.latency = self.node.base_latency_ms / max(1.0 - self.metrics.utilization, 0.001)
             self.metrics.bottleneck = False
             self.metrics.failure_reason = None
         else:
-            self.metrics.latency = float('inf')
+            self.metrics.latency = 9999.9
             self.metrics.bottleneck = True
             self.metrics.failure_reason = "Capacity Saturation"
             
         self.metrics.replica_count = self.node.replicas
+        
+        # 2. Update Circuit Breaker State for next tick
+        # We consider it a "failure" if there are dropped requests
+        self._update_circuit_breaker(has_failures=(self.metrics.dropped_requests > 0))
+        
         return self.metrics

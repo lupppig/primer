@@ -413,7 +413,7 @@ export default function Canvas() {
 										variant={simulation.isSimulating ? "destructive" : "default"}
 										size="sm"
 										className="h-8 gap-2 transition-colors relative overflow-hidden"
-										onClick={toggleSimulation}
+										onClick={() => toggleSimulation(currentDesign?.id)}
 									>
 										{simulation.isSimulating ? (
 											<>

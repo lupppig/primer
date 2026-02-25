@@ -17,6 +17,7 @@ from app.core.database import Base
 # Import all models here so Alembic can discover them
 import app.users.models
 import app.canvas.models
+import app.simulation.persistence
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -5,16 +5,48 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from starlette.websockets import WebSocketState
 from pydantic import ValidationError
 
+from sqlalchemy import select
 from app.core.nats import get_nats_js
+from app.core.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.simulation.schemas import SimulationInput
 from app.simulation.engine import Simulator
+from app.simulation.persistence import SimulationRun, SimulationTick
 from app.core.exceptions import ValidationException
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/simulation", tags=["simulation"])
+
+@router.get("/history/{design_id}")
+async def get_design_simulation_history(design_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Returns a list of recent simulation runs for a specific design.
+    """
+    result = await db.execute(
+        select(SimulationRun)
+        .where(SimulationRun.design_id == design_id)
+        .order_by(SimulationRun.start_time.desc())
+        .limit(10)
+    )
+    runs = result.scalars().all()
+    return runs
+
+@router.get("/history/run/{run_id}")
+async def get_simulation_run_ticks(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Returns all telemetry ticks for a specific simulation run.
+    """
+    result = await db.execute(
+        select(SimulationTick)
+        .where(SimulationTick.run_id == run_id)
+        .order_by(SimulationTick.tick_index.asc())
+    )
+    ticks = result.scalars().all()
+    return ticks
+
 
 @router.post("/run")
 async def run_simulation_sync(sim_input: SimulationInput):
@@ -23,7 +55,6 @@ async def run_simulation_sync(sim_input: SimulationInput):
     Ideal for lightweight analysis.
     """
     try:
-        # For sync single-shot runs, instantiate an ephemeral simulator
         simulator = Simulator(session_id="sync_run")
         result = simulator.process_tick(sim_input.graph, sim_input.incoming_rps)
         return result
@@ -40,7 +71,6 @@ async def simulation_websocket(websocket: WebSocket):
     logger.info(f"WebSocket Client connected: {websocket.client}")
     
     try:
-        # Wait for the initial configuration
         data = await websocket.receive_text()
         
         try:
@@ -51,7 +81,6 @@ async def simulation_websocket(websocket: WebSocket):
             await websocket.close(code=1003)
             return
 
-        # Event to signal when the client has disconnected
         client_disconnected = asyncio.Event()
 
         async def listen_for_updates():
@@ -73,31 +102,25 @@ async def simulation_websocket(websocket: WebSocket):
 
         listen_task = asyncio.create_task(listen_for_updates())
         
-        # NATS Integration
         js = await get_nats_js()
         client_id = str(uuid.uuid4())
         reply_topic = f"simulation.results.{client_id}"
         
-        # Subscribe to our specific reply topic
         sub = await js.subscribe(reply_topic)
 
-        # Start streaming simulation ticks via NATS Worker
         current_tick = 0
         try:
             while not client_disconnected.is_set() and websocket.application_state == WebSocketState.CONNECTED:
                 try:
-                    # Prepare payload for worker
                     payload = sim_input.model_dump()
                     payload["current_tick"] = current_tick
                     
-                    # Publish to worker stream, injecting the reply subject via headers
                     await js.publish(
                         "simulation.requests", 
                         json.dumps(payload).encode(),
                         headers={"reply-to": reply_topic}
                     )
                     
-                    # Wait for the worker to process and publish back (timeout gracefully)
                     try:
                         msg = await sub.next_msg(timeout=5.0)
                         
@@ -112,8 +135,8 @@ async def simulation_websocket(websocket: WebSocket):
                             
                         current_tick += 1
                         
-                        # Rate limit to 1 simulated tick per second
-                        await asyncio.sleep(1.0)
+                        interval = 1.0 / (sim_input.sim_speed or 1.0)
+                        await asyncio.sleep(interval)
                         
                     except Exception as e:
                         if not client_disconnected.is_set():

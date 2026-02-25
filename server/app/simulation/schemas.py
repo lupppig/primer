@@ -1,6 +1,12 @@
 from typing import List, Dict, Tuple, Optional
 from pydantic import BaseModel, Field
 
+class ResilienceConfig(BaseModel):
+    circuit_breaker_enabled: bool = False
+    failure_threshold_pct: float = Field(default=50.0, ge=0.0, le=100.0)
+    recovery_timeout_ticks: int = Field(default=10, ge=1)
+    min_request_threshold: int = Field(default=10, ge=1)
+
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
@@ -11,6 +17,7 @@ class SimNode(BaseModel):
     queue_size: int = Field(default=0, ge=0)
     load_balancing_strategy: str = "round_robin" # "round_robin" or "least_latency"
     resources: dict = Field(default_factory=dict)
+    resilience_config: Optional[ResilienceConfig] = None
 
 class SimEdge(BaseModel):
     id: str
@@ -29,9 +36,11 @@ class LoadProfile(BaseModel):
     durationSeconds: int = Field(default=30, ge=1)
 
 class SimulationInput(BaseModel):
+    design_id: Optional[str] = None
     graph: SimGraph
     incoming_rps: float = Field(default=100.0, ge=0)
     load_profile: Optional[LoadProfile] = None
+    sim_speed: float = Field(default=1.0, ge=0.1, le=10.0)
     traffic_pattern: Optional[List[Tuple[int, float]]] = None
     duration_ms: int = Field(default=0, ge=0)
     fail_nodes: Optional[List[str]] = None
@@ -46,6 +55,7 @@ class NodeMetrics(BaseModel):
     replica_count: int = 1
     queue_depth: int = 0
     dropped_requests: int = 0
+    status: str = "healthy" # "healthy", "degraded", "tripped"
 
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0
