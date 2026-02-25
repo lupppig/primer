@@ -87,7 +87,7 @@ nodes = [
         "position": {"x": 50, "y": 300},
         "data": {
             "label": "Content Ingestion Engine",
-            "originalType": "Kubernetes",
+            "originalType": "Generic Service",
             "capacity_rps": 300000,
             "base_latency_ms": 30,
             "replicas": 100

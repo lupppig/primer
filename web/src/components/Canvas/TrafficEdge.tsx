@@ -38,20 +38,12 @@ export default function TrafficEdge({
 	const strokeColor = style?.stroke || '#3caff6';
 	let baseStrokeWidth = parseFloat(String(style?.strokeWidth)) || 1.5;
 
-	// Different styles strictly based on the explicit protocol connection type
-	let dashArray = '4 8'; // HTTP default (Standard dashed)
 	let animDuration = data?.simDuration ?? 1.5;
-	let protocolFilter = `drop-shadow(0 0 5px ${strokeColor})`;
 
 	if (protocol === 'WebSocket') {
-		dashArray = '0'; // Solid glowing pipe
 		baseStrokeWidth += 1;
-		protocolFilter = `drop-shadow(0 0 8px ${strokeColor}) drop-shadow(0 0 15px ${strokeColor})`;
 	} else if (protocol === 'UDP') {
-		dashArray = '2 15'; // Very sparse, fast dots
 		animDuration = Math.max(0.1, animDuration * 0.5); // UDP is visually "faster"
-	} else if (protocol === 'gRPC') {
-		dashArray = '8 4'; // Longer dashes
 	}
 
 	return (
@@ -69,32 +61,45 @@ export default function TrafficEdge({
 				}}
 			/>
 
-			{/* Animated Traffic Overlay */}
+			{/* Animated Traffic Overlay - Multi-Packet Flow */}
 			{simulation.isSimulating && animated && ((data?.rps ?? 0) > 0) && (
 				<>
+					{/* Base Pulse Path */}
 					<path
 						d={edgePath}
 						fill="none"
-						className="animate-flow-dash"
 						stroke={strokeColor}
-						strokeWidth={Number(baseStrokeWidth) + 0.5}
-						strokeDasharray={dashArray}
-						style={{
-							filter: protocolFilter,
-							animation: protocol === 'WebSocket' ? 'none' : `flow ${animDuration}s linear infinite reverse`
-						}}
+						strokeWidth={Number(baseStrokeWidth) + 0.2}
+						className="opacity-20 translate-z-0"
+						style={{ filter: `blur(1px)` }}
 					/>
 
-					{/* Highlight Packet indicating flow direction (Skip for WebSockets as it's a solid pipe) */}
-					{protocol !== 'WebSocket' && (
-						<circle r="4" fill={strokeColor} style={{ filter: `drop-shadow(0 0 6px ${strokeColor})` }}>
-							<animateMotion
-								dur={`${animDuration}s`}
-								repeatCount="indefinite"
-								path={edgePath}
-							/>
-						</circle>
-					)}
+					{/* Multiple Request Packets based on volume */}
+					{[...Array(Math.min(12, Math.ceil((data?.rps || 0) / 5000) + 1))].map((_, i, arr) => {
+						const delay = (i / arr.length) * animDuration;
+						// Speed is adjusted by simSpeed
+						const adjustedDuration = animDuration / simulation.simSpeed;
+						const packetSize = Math.min(6, 2 + (data?.rps / 20000));
+
+						return (
+							<circle
+								key={`${id}-packet-${i}`}
+								r={packetSize}
+								fill={strokeColor}
+								className="pointer-events-none"
+								style={{
+									filter: `drop-shadow(0 0 ${packetSize * 1.5}px ${strokeColor})`,
+								}}
+							>
+								<animateMotion
+									dur={`${adjustedDuration}s`}
+									repeatCount="indefinite"
+									path={edgePath}
+									begin={`-${delay}s`}
+								/>
+							</circle>
+						);
+					})}
 				</>
 			)}
 

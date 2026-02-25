@@ -22,6 +22,7 @@ export type SimulationState = {
 	activeBottlenecks: string[];
 	nodeMetrics: Record<string, any>;
 	chaosNodes: string[];
+	simSpeed: number; // 1 to 10
 };
 
 type AppState = {
@@ -36,6 +37,7 @@ type AppState = {
 	toggleSimulation: () => void;
 	setSimulationData: (data: Partial<SimulationState>) => void;
 	setTargetRps: (rps: number) => void;
+	setSimSpeed: (speed: number) => void;
 	activeTool: string;
 	setActiveTool: (tool: string) => void;
 	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => void;
@@ -64,6 +66,7 @@ export const useStore = create<AppState>((set, get) => ({
 		activeBottlenecks: [],
 		nodeMetrics: {},
 		chaosNodes: [],
+		simSpeed: 1.0,
 	},
 	past: [],
 	future: [],
@@ -428,5 +431,10 @@ export const useStore = create<AppState>((set, get) => ({
 			};
 			ws.send(JSON.stringify(payload));
 		}
+	},
+	setSimSpeed: (speed: number) => {
+		set((state) => ({
+			simulation: { ...state.simulation, simSpeed: speed }
+		}));
 	}
 }));

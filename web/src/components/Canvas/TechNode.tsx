@@ -1,6 +1,7 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
 import { Copy, Trash2, Flame, AlertTriangle, Layers, Zap } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
 import { useStore } from '../../store/useStore';
 
@@ -179,8 +180,18 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 				</div>
 
 				{/* Selection/Action Menu Hover */}
+				{/* Selection/Action Menu Hover */}
 				{selected && !isEditing && (
 					<div className="absolute top-1 right-8 flex items-center gap-1 bg-[#0f111a] border border-[#2a2f40] px-1.5 py-0.5 rounded shadow-xl">
+						<div className="flex items-center gap-1.5 mr-2 px-1 border-r border-[#2a2f40]">
+							<span className="text-[9px] text-slate-500 font-bold uppercase">Repl</span>
+							<input
+								type="number"
+								className="bg-transparent text-[9px] text-blue-400 font-mono w-8 outline-none"
+								value={data.replicas || 1}
+								onChange={(e) => updateNodeData(id, { replicas: parseInt(e.target.value) || 1 })}
+							/>
+						</div>
 						<button onClick={() => duplicateNode(id)} className="p-1 hover:text-blue-400 transition-colors text-slate-400" title="Duplicate"><Copy size={11} /></button>
 						<button onClick={() => toggleNodeFailure(id)} className={`p-1 transition-colors ${isFailed ? 'text-green-500' : 'text-orange-500'}`} title={isFailed ? "Recover" : "Chaos"}>
 							<Flame size={11} className={isFailed ? '' : 'animate-bounce'} />
@@ -189,11 +200,53 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 					</div>
 				)}
 
+				{/* Insights Tooltip (Hover) */}
+				<AnimatePresence>
+					{simulation.isSimulating && (
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							whileHover={{ opacity: 1, y: 0 }}
+							className="absolute -top-32 left-0 w-full min-w-[200px] z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+						>
+							<div className="bg-[#0f111a] border border-[#2a2f40] p-3 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex flex-col gap-2">
+								<div className="flex justify-between items-center border-b border-[#2a2f40] pb-1.5 mb-1">
+									<h4 className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">Node Insight</h4>
+									<div className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${nodeMetrics.bottleneck ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+										{nodeMetrics.bottleneck ? 'Congested' : 'Healthy'}
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+									<TooltipRow label="Raw Ingress" value={`${Math.round(nodeMetrics.incoming_rps || 0)}/s`} />
+									<TooltipRow label="Replicas" value={nodeMetrics.replica_count || 1} />
+									<TooltipRow label="Drop Rate" value={`${Math.round((nodeMetrics.dropped_requests || 0))} pks`} color={nodeMetrics.dropped_requests > 0 ? '#ef4444' : undefined} />
+									<TooltipRow label="Strategy" value={(data.load_balancing_strategy || 'RR').replace('_', ' ')} />
+								</div>
+
+								{nodeMetrics.failure_reason && (
+									<div className="mt-1 p-1.5 bg-red-500/10 border border-red-500/20 rounded text-[9px] text-red-400 font-medium">
+										Reason: {nodeMetrics.failure_reason}
+									</div>
+								)}
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
 				{/* Bottom Handles */}
 				<Handle type="source" position={Position.Right} id="right" className={handleClasses} />
 				<Handle type="source" position={Position.Bottom} id="bottom" className={handleClasses} />
 			</div>
 		</>
+	);
+}
+
+function TooltipRow({ label, value, color }: { label: string, value: string | number, color?: string }) {
+	return (
+		<div className="flex justify-between items-center text-[9px]">
+			<span className="text-slate-500 uppercase tracking-tighter">{label}</span>
+			<span className="font-mono text-slate-300 font-bold" style={{ color }}>{value}</span>
+		</div>
 	);
 }
 

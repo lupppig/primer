@@ -33,8 +33,11 @@ class QueueActor(ComponentActor):
             queue_wait_penalty = (self.metrics.queue_depth / total_capacity) * 1000 # wait time in ms
             self.metrics.latency = base_latency + queue_wait_penalty
             self.metrics.bottleneck = False
+            self.metrics.failure_reason = None
         else:
             self.metrics.latency = float('inf')
             self.metrics.bottleneck = True
+            self.metrics.failure_reason = "Queue Overflow" if self.metrics.dropped_requests > 0 else "Processing Saturation"
             
+        self.metrics.replica_count = self.node.replicas
         return self.metrics

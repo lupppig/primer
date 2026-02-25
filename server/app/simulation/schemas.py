@@ -9,6 +9,7 @@ class SimNode(BaseModel):
     rate_limit_rps: Optional[float] = None
     replicas: int = Field(default=1, ge=0)
     queue_size: int = Field(default=0, ge=0)
+    load_balancing_strategy: str = "round_robin" # "round_robin" or "least_latency"
     resources: dict = Field(default_factory=dict)
 
 class SimEdge(BaseModel):
@@ -34,6 +35,8 @@ class NodeMetrics(BaseModel):
     utilization: float = 0.0
     latency: float = 0.0
     bottleneck: bool = False
+    failure_reason: Optional[str] = None
+    replica_count: int = 1
     queue_depth: int = 0
     dropped_requests: int = 0
 

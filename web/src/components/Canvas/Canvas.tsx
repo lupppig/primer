@@ -12,9 +12,8 @@ import 'reactflow/dist/style.css';
 import { useStore } from '../../store/useStore';
 import { useDesignStore } from '../../store/useDesignStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Activity, Play, Settings, Save, MessageSquare, Loader2, Plus, Minus, Home } from 'lucide-react';
+import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home } from 'lucide-react';
 import { Button } from '../Common/Button';
-import { Input } from '../Common/Input';
 import { motion, AnimatePresence } from 'framer-motion';
 import TechNode from './TechNode';
 import TrafficEdge from './TrafficEdge';
@@ -297,43 +296,55 @@ export default function Canvas() {
 									)}
 									<div className="w-px h-4 bg-[var(--color-border)]" />
 
-									<div className="flex items-center gap-1 px-2 border-r border-[var(--color-border)]">
-										<span className="text-xs text-[var(--color-text-muted)] font-medium mr-1">LOAD</span>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6 hover:bg-[#1a1c23] shrink-0"
-											onClick={() => {
-												const newVal = Math.max(0, simulation.targetRps - 1000);
-												useStore.getState().setTargetRps(newVal);
-											}}
-										>
-											<Minus className="w-3 h-3 text-[var(--color-text-muted)]" />
-										</Button>
-										<Input
-											type="number"
-											value={simulation.targetRps}
-											onChange={(e) => {
-												const val = parseInt(e.target.value);
-												// Always call setTargetRps. If the user deleted the text, fallback to 0 safely.
-												useStore.getState().setTargetRps(isNaN(val) ? 0 : Math.max(0, val));
-											}}
-											className="h-8 w-24 bg-[#0f1115] text-center font-mono"
-											min={0}
-											step={100}
-										/>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6 hover:bg-[#1a1c23] shrink-0 mr-1"
-											onClick={() => {
-												const newVal = simulation.targetRps + 1000;
-												useStore.getState().setTargetRps(newVal);
-											}}
-										>
-											<Plus className="w-3 h-3 text-[var(--color-text-muted)]" />
-										</Button>
-										<span className="text-xs text-[var(--color-text-muted)]">RPS</span>
+									<div className="flex items-center gap-4 px-4 border-r border-[var(--color-border)] py-1">
+										{/* Volume Style RPS Control */}
+										<div className="flex flex-col gap-1 w-48">
+											<div className="flex justify-between items-center">
+												<span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Load Volume</span>
+												<span className={`text-[10px] font-mono font-bold ${simulation.targetRps > 75000 ? 'text-red-500' :
+													simulation.targetRps > 40000 ? 'text-yellow-500' : 'text-emerald-500'
+													}`}>
+													{numberFormatter.format(simulation.targetRps)} RPS
+												</span>
+											</div>
+											<div className="relative flex items-center group h-4">
+												<input
+													type="range"
+													min="0"
+													max="100000"
+													step="1000"
+													value={simulation.targetRps}
+													onChange={(e) => useStore.getState().setTargetRps(parseInt(e.target.value))}
+													className="w-full h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-all"
+													style={{
+														background: `linear-gradient(to right, ${simulation.targetRps > 75000 ? '#ef4444' :
+															simulation.targetRps > 40000 ? '#f59e0b' : '#10b981'
+															} 0%, ${simulation.targetRps > 75000 ? '#ef4444' :
+																simulation.targetRps > 40000 ? '#f59e0b' : '#10b981'
+															} ${(simulation.targetRps / 100000) * 100}%, #1f2330 ${(simulation.targetRps / 100000) * 100}%, #1f2330 100%)`
+													}}
+												/>
+											</div>
+										</div>
+
+										<div className="w-px h-6 bg-[var(--color-border)]" />
+
+										{/* Simulation Speed Control */}
+										<div className="flex flex-col gap-1 w-32">
+											<div className="flex justify-between items-center">
+												<span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Sim Speed</span>
+												<span className="text-[10px] font-mono text-blue-400 font-bold">{simulation.simSpeed}x</span>
+											</div>
+											<input
+												type="range"
+												min="0.5"
+												max="10"
+												step="0.5"
+												value={simulation.simSpeed}
+												onChange={(e) => useStore.getState().setSimSpeed(parseFloat(e.target.value))}
+												className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-400"
+											/>
+										</div>
 									</div>
 
 									<Button variant="ghost" size="icon" className="h-8 w-8 hover:text-white ml-2">
