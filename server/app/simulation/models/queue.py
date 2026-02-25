@@ -49,11 +49,14 @@ class QueueActor(ComponentActor):
             self.metrics.bottleneck = True
             self.metrics.failure_reason = "Queue Overflow" if self.metrics.dropped_requests > 0 else "Processing Saturation"
             
-        # 2. Update Circuit Breaker State
+        # Update Circuit Breaker State
         if self.cb_state != "OPEN":
             self._update_circuit_breaker(has_failures=(self.metrics.dropped_requests > 0))
 
-        # 3. Update Autoscaling Logic
+        #  Update Autoscaling Logic
         self._update_autoscaling()
+
+        # Update Costs
+        self._update_costs()
 
         return self.metrics

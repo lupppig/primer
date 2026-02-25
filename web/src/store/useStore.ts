@@ -33,6 +33,7 @@ export type SimulationState = {
 	history: Record<string, any[]>; // For real-time charts
 	chaosNodes: string[];
 	simSpeed: number; // 1 to 10
+	totalSimulationCost: number;
 };
 
 type AppState = {
@@ -78,6 +79,7 @@ export const useStore = create<AppState>((set, get) => ({
 		history: {},
 		chaosNodes: [],
 		simSpeed: 1.0,
+		totalSimulationCost: 0,
 	},
 	past: [],
 	future: [],
@@ -203,7 +205,8 @@ export const useStore = create<AppState>((set, get) => ({
 					queue_size: n.data?.queue_size ?? 5000,
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
 					resilience_config: n.data?.resilience_config ?? null,
-					scaling_config: n.data?.scaling_config ?? null
+					scaling_config: n.data?.scaling_config ?? null,
+					cost_config: n.data?.cost_config ?? null
 				};
 			});
 			const simEdges = edges
@@ -290,7 +293,8 @@ export const useStore = create<AppState>((set, get) => ({
 					queue_size: n.data?.queue_size ?? 5000,
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
 					resilience_config: n.data?.resilience_config ?? null,
-					scaling_config: n.data?.scaling_config ?? null
+					scaling_config: n.data?.scaling_config ?? null,
+					cost_config: n.data?.cost_config ?? null
 				};
 			});
 
@@ -331,10 +335,12 @@ export const useStore = create<AppState>((set, get) => ({
 					set((state) => {
 						const nodeUtils: Record<string, number> = {};
 						const newHistory = { ...state.simulation.history };
+						let tickCostSum = 0;
 
 						if (data.nodes) {
 							for (const [nodeId, metrics] of Object.entries(data.nodes) as any) {
 								nodeUtils[nodeId] = metrics.utilization;
+								tickCostSum += metrics.tick_cost || 0;
 								if (!newHistory[nodeId]) newHistory[nodeId] = [];
 								newHistory[nodeId] = [
 									...newHistory[nodeId].slice(-29),
@@ -374,7 +380,8 @@ export const useStore = create<AppState>((set, get) => ({
 								totalRps: data.graph_metrics?.total_throughput || 0,
 								activeBottlenecks: data.graph_metrics?.bottleneck_nodes || [],
 								nodeMetrics: data.nodes || {},
-								history: newHistory
+								history: newHistory,
+								totalSimulationCost: state.simulation.totalSimulationCost + tickCostSum
 							}
 						};
 					});
@@ -414,6 +421,7 @@ export const useStore = create<AppState>((set, get) => ({
 				activeBottlenecks: isSimulating ? state.simulation.activeBottlenecks : [],
 				nodeMetrics: isSimulating ? state.simulation.nodeMetrics : {},
 				chaosNodes: isSimulating ? state.simulation.chaosNodes : [], // reset chaos on stop
+				totalSimulationCost: isSimulating ? 0 : state.simulation.totalSimulationCost,
 			}
 		}));
 	},
@@ -444,7 +452,8 @@ export const useStore = create<AppState>((set, get) => ({
 					queue_size: n.data?.queue_size ?? 5000,
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
 					resilience_config: n.data?.resilience_config ?? null,
-					scaling_config: n.data?.scaling_config ?? null
+					scaling_config: n.data?.scaling_config ?? null,
+					cost_config: n.data?.cost_config ?? null
 				};
 			});
 			const simEdges = edges

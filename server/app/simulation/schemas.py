@@ -15,6 +15,10 @@ class ScalingConfig(BaseModel):
     scale_up_cooldown_ticks: int = Field(default=5, ge=0)
     scale_down_cooldown_ticks: int = Field(default=10, ge=0)
 
+class CostConfig(BaseModel):
+    monthly_base_cost_per_replica: float = Field(default=0.0, ge=0)
+    cost_per_million_requests: float = Field(default=0.0, ge=0)
+
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
@@ -27,6 +31,7 @@ class SimNode(BaseModel):
     resources: dict = Field(default_factory=dict)
     resilience_config: Optional[ResilienceConfig] = None
     scaling_config: Optional[ScalingConfig] = None
+    cost_config: Optional[CostConfig] = None
 
 class SimEdge(BaseModel):
     id: str
@@ -66,6 +71,7 @@ class NodeMetrics(BaseModel):
     dropped_requests: int = 0
     status: str = "healthy" # "healthy", "degraded", "tripped"
     scaling_status: str = "idle" # "idle", "scaling_up", "scaling_down"
+    tick_cost: float = 0.0
 
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0

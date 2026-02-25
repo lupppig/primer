@@ -12,7 +12,7 @@ import 'reactflow/dist/style.css';
 import { useStore } from '../../store/useStore';
 import { useDesignStore } from '../../store/useDesignStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home } from 'lucide-react';
+import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home, DollarSign } from 'lucide-react';
 import { Button } from '../Common/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 import TechNode from './TechNode';
@@ -409,6 +409,15 @@ export default function Canvas() {
 										<MessageSquare className="w-4 h-4" />
 									</Button>
 									<div className="w-px h-4 bg-[var(--color-border)] mx-1" />
+									{simulation.isSimulating && (
+										<div className="flex flex-col items-center px-4 border-r border-[var(--color-border)]">
+											<span className="text-[9px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Burn Rate</span>
+											<div className="flex items-center gap-1 text-green-400 font-mono font-bold text-xs">
+												<DollarSign className="w-3 h-3" />
+												{simulation.totalSimulationCost.toFixed(4)}
+											</div>
+										</div>
+									)}
 									<Button
 										variant={simulation.isSimulating ? "destructive" : "default"}
 										size="sm"

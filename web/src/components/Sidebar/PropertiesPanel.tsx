@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
-import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown, DollarSign, Coins } from 'lucide-react';
 import type { Node, Edge } from 'reactflow';
 import {
 	LineChart,
@@ -16,7 +16,7 @@ import {
 
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
-	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'metrics'>('config');
+	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'metrics'>('config');
 
 	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
@@ -305,6 +305,70 @@ export default function PropertiesPanel() {
 			);
 		}
 
+		if (activeTab === 'economy') {
+			const costConfig = selectedNode?.data?.cost_config || {
+				monthly_base_cost_per_replica: 0,
+				cost_per_million_requests: 0
+			};
+
+			const updateCostConfig = (field: string, value: any) => {
+				updateNodeData('cost_config', { ...costConfig, [field]: value });
+			};
+
+			const hourlyBase = (costConfig.monthly_base_cost_per_replica / 720);
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-blue-400">
+							<DollarSign size={14} />
+							<span className="text-[12px] font-medium text-white block">Cost Configuration</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Projected operational expenses for this component.</p>
+					</div>
+
+					<div className="space-y-5">
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Monthly Base Cost (per Instance)
+								<span className="text-white font-bold">${costConfig.monthly_base_cost_per_replica}</span>
+							</label>
+							<Input
+								type="number"
+								value={costConfig.monthly_base_cost_per_replica}
+								onChange={(e) => updateCostConfig('monthly_base_cost_per_replica', parseFloat(e.target.value) || 0)}
+								className="bg-[#0f1115] px-2 h-8 text-[11px]"
+								placeholder="e.g. 50"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Fixed cost for instance compute/storage.</p>
+						</div>
+
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Cost per Million Requests
+								<span className="text-white font-bold">${costConfig.cost_per_million_requests}</span>
+							</label>
+							<Input
+								type="number"
+								value={costConfig.cost_per_million_requests}
+								onChange={(e) => updateCostConfig('cost_per_million_requests', parseFloat(e.target.value) || 0)}
+								className="bg-[#0f1115] px-2 h-8 text-[11px]"
+								placeholder="e.g. 0.20"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Transfer or API invocation charges.</p>
+						</div>
+
+						<div className="pt-4 border-t border-[var(--color-border)]/30">
+							<div className="flex justify-between items-center text-[11px]">
+								<span className="text-[var(--color-text-muted)]">Unit Hourly Burn:</span>
+								<span className="text-green-400 font-bold font-mono">${hourlyBase.toFixed(4)}/hr</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
 		if (activeTab === 'metrics') {
 			const nodeHistory = simulation.history[selectedNode?.id || ''] || [];
 			return (
@@ -516,6 +580,13 @@ export default function PropertiesPanel() {
 							title="Scaling Policy"
 						>
 							<Zap className="w-3.5 h-3.5" />
+						</button>
+						<button
+							onClick={() => setActiveTab('economy')}
+							className={`p-1.5 rounded-md transition-all ${activeTab === 'economy' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+							title="Economy Configuration"
+						>
+							<DollarSign className="w-3.5 h-3.5" />
 						</button>
 						<button
 							onClick={() => setActiveTab('metrics')}

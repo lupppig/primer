@@ -27,6 +27,7 @@ class ComponentActor(ABC):
         self.metrics.dropped_requests = 0
         self.metrics.status = "healthy"
         self.metrics.scaling_status = "idle"
+        self.metrics.tick_cost = 0.0
         
     def _update_circuit_breaker(self, has_failures: bool = False):
         config = self.node.resilience_config
@@ -122,6 +123,22 @@ class ComponentActor(ABC):
 
         self.metrics.scaling_status = self.scaling_status
         self.metrics.replica_count = self.node.replicas
+
+    def _update_costs(self):
+        config = self.node.cost_config
+        if not config:
+            self.metrics.tick_cost = 0.0
+            return
+
+        # Monthly seconds = 30 * 24 * 3600 = 2,592,000
+        # Tick cost (base) = (monthly_base_cost_per_replica * replicas) / 2592000
+        base_cost_tick = (config.monthly_base_cost_per_replica * self.node.replicas) / 2592000
+        
+        # Variable cost: (effective_rps * cost_per_million_requests) / 1,000,000
+        # Since RPS is per second and 1 tick = 1 second
+        var_cost_tick = (self.metrics.effective_rps * config.cost_per_million_requests) / 1000000
+        
+        self.metrics.tick_cost = base_cost_tick + var_cost_tick
         
     @abstractmethod
     def process_tick(self) -> NodeMetrics:

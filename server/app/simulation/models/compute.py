@@ -44,9 +44,14 @@ class ComputeActor(ComponentActor):
             self.metrics.bottleneck = True
             self.metrics.failure_reason = "Capacity Saturation"
             
+        #  Update Circuit Breaker State for next tick
         # I consider it a "failure" if there are dropped requests
         self._update_circuit_breaker(has_failures=(self.metrics.dropped_requests > 0))
         
+        #  Update Autoscaling Logic
         self._update_autoscaling()
+        
+        #  Update Costs
+        self._update_costs()
         
         return self.metrics
