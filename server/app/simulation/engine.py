@@ -1,5 +1,5 @@
-from typing import Dict, List
-from app.simulation.schemas import SimGraph, NodeMetrics, GraphMetrics, SimulationTickResult
+from typing import Dict, List, Optional
+from app.simulation.schemas import SimGraph, NodeMetrics, GraphMetrics, SimulationTickResult, LoadProfile
 from app.simulation.models.base import ComponentActor
 from app.simulation.models.compute import ComputeActor
 from app.simulation.models.queue import QueueActor
@@ -67,11 +67,35 @@ class Simulator:
                 # This safely patches it under the hood while preserving buffers.
                 self.actors[node_id].node = node_data
 
-    def process_tick(self, graph: SimGraph, incoming_rps: float) -> SimulationTickResult:
+    def process_tick(self, graph: SimGraph, incoming_rps: float, load_profile: Optional['LoadProfile'] = None) -> SimulationTickResult:
         """
         Executes a single chronological simulation interval (tick).
         Propagates load top-down, computing cascading latency and back-pressure.
         """
+        # Calculate dynamic RPS if a profile is provided
+        actual_incoming_rps = incoming_rps
+        if load_profile:
+            t = self.current_time % load_profile.durationSeconds
+            p_type = load_profile.type
+            base = load_profile.baseRps
+            peak = load_profile.peakRps
+            dur = load_profile.durationSeconds
+            
+            if p_type == 'flat':
+                actual_incoming_rps = base
+            elif p_type == 'spike':
+                # Linear ramp up and down
+                mid = dur / 2
+                if t < mid:
+                    # Ramp up
+                    actual_incoming_rps = base + (peak - base) * (t / mid)
+                else:
+                    # Ramp down
+                    actual_incoming_rps = peak - (peak - base) * ((t - mid) / mid)
+            elif p_type == 'step':
+                # Jump at halfway
+                actual_incoming_rps = base if t < (dur / 2) else peak
+        
         if not graph.nodes:
             return SimulationTickResult(
                 time=self.current_time,
@@ -93,7 +117,7 @@ class Simulator:
         if not start_nodes and graph.nodes:
             raise ValueError("Graph has no valid entry points for traffic.")
             
-        initial_rps = incoming_rps / len(start_nodes)
+        initial_rps = actual_incoming_rps / len(start_nodes)
         for start_id in start_nodes:
             self.actors[start_id].metrics.incoming_rps += initial_rps
             

@@ -15,10 +15,19 @@ import {
 	applyEdgeChanges,
 } from 'reactflow';
 
+export type LoadProfileType = 'flat' | 'spike' | 'step';
+
+export interface LoadProfile {
+	type: LoadProfileType;
+	baseRps: number;
+	peakRps: number;
+	durationSeconds: number;
+}
+
 export type SimulationState = {
 	isSimulating: boolean;
 	totalRps: number;
-	targetRps: number;
+	loadProfile: LoadProfile;
 	activeBottlenecks: string[];
 	nodeMetrics: Record<string, any>;
 	chaosNodes: string[];
@@ -36,7 +45,7 @@ type AppState = {
 	setEdges: (edges: Edge[]) => void;
 	toggleSimulation: () => void;
 	setSimulationData: (data: Partial<SimulationState>) => void;
-	setTargetRps: (rps: number) => void;
+	updateLoadProfile: (profile: Partial<LoadProfile>) => void;
 	setSimSpeed: (speed: number) => void;
 	activeTool: string;
 	setActiveTool: (tool: string) => void;
@@ -63,7 +72,7 @@ export const useStore = create<AppState>((set, get) => ({
 	simulation: {
 		isSimulating: false,
 		totalRps: 0,
-		targetRps: 1500, // Default Starting RPS
+		loadProfile: { type: 'flat', baseRps: 1500, peakRps: 5000, durationSeconds: 30 },
 		activeBottlenecks: [],
 		nodeMetrics: {},
 		chaosNodes: [],
@@ -205,7 +214,8 @@ export const useStore = create<AppState>((set, get) => ({
 					traffic_percent: e.data?.traffic_percent ?? 1.0
 				}));
 			const payload = {
-				incoming_rps: get().simulation.targetRps,
+				incoming_rps: get().simulation.loadProfile.baseRps,
+				load_profile: get().simulation.loadProfile,
 				graph: { nodes: simNodes, edges: simEdges }
 			};
 			ws.send(JSON.stringify(payload));
@@ -292,7 +302,8 @@ export const useStore = create<AppState>((set, get) => ({
 				}));
 
 			const payload = {
-				incoming_rps: get().simulation.targetRps,
+				incoming_rps: get().simulation.loadProfile.baseRps,
+				load_profile: get().simulation.loadProfile,
 				graph: {
 					nodes: simNodes,
 					edges: simEdges
@@ -403,9 +414,9 @@ export const useStore = create<AppState>((set, get) => ({
 			simulation: { ...state.simulation, ...data }
 		}));
 	},
-	setTargetRps: (rps: number) => {
+	updateLoadProfile: (profile: Partial<LoadProfile>) => {
 		set((state) => ({
-			simulation: { ...state.simulation, targetRps: rps }
+			simulation: { ...state.simulation, loadProfile: { ...state.simulation.loadProfile, ...profile } }
 		}));
 		// If simulation is active, hot-reload the payload immediately
 		if (ws && ws.readyState === WebSocket.OPEN) {
@@ -436,7 +447,8 @@ export const useStore = create<AppState>((set, get) => ({
 					traffic_percent: e.data?.traffic_percent ?? 1.0
 				}));
 			const payload = {
-				incoming_rps: rps,
+				incoming_rps: get().simulation.loadProfile.baseRps,
+				load_profile: get().simulation.loadProfile,
 				graph: { nodes: simNodes, edges: simEdges }
 			};
 			ws.send(JSON.stringify(payload));

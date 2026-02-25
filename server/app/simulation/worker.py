@@ -54,7 +54,8 @@ async def start_simulation_worker():
                     # Compute the logic through the stateful engine
                     result = simulator.process_tick(
                         graph=sim_input.graph,
-                        incoming_rps=sim_input.incoming_rps 
+                        incoming_rps=sim_input.incoming_rps,
+                        load_profile=sim_input.load_profile
                     )
                     
                     # Publish result back
@@ -69,7 +70,7 @@ async def start_simulation_worker():
                 except Exception as e:
                     logger.exception(f"Error computing simulation tick: {e}")
                     # Don't ack so it can be retried if it's a transient failure, 
-                    # but in a real-world scenario we'd want a dead-letter queue.
+                    #TODO: but in a prod  we'd want a dead-letter queue.
                     await msg.nak()
                     
         except TimeoutError:

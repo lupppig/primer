@@ -44,6 +44,7 @@ export default function Canvas() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [tempName, setTempName] = useState('');
 	const [isEditingName, setIsEditingName] = useState(false);
+	const [isLoadProfileOpen, setIsLoadProfileOpen] = useState(false);
 	const [rfInstance, setRfInstance] = useState<any>(null);
 
 	const bottleneckLabels = nodes
@@ -93,7 +94,7 @@ export default function Canvas() {
 		// Only save if the data actually changed (prevents saving on pure renders)
 		const currentNodesStr = JSON.stringify(nodes);
 		const currentEdgesStr = JSON.stringify(edges);
-		const currentSettingsStr = JSON.stringify({ targetRps: simulation.targetRps });
+		const currentSettingsStr = JSON.stringify({ loadProfile: simulation.loadProfile });
 
 		if (currentNodesStr === lastSavedData.current.nodes && currentEdgesStr === lastSavedData.current.edges && currentSettingsStr === lastSavedData.current.settings) {
 			return;
@@ -111,7 +112,7 @@ export default function Canvas() {
 					currentDesign.id,
 					nodes,
 					edges,
-					{ targetRps: simulation.targetRps },
+					{ loadProfile: simulation.loadProfile },
 					currentDesign.version
 				);
 				lastSavedData.current = {
@@ -125,7 +126,7 @@ export default function Canvas() {
 				setIsSaving(false);
 			}
 		}, 2000);
-	}, [nodes, edges, currentDesign, saveDesign, simulation.targetRps, simulation.isSimulating]);
+	}, [nodes, edges, currentDesign, saveDesign, simulation.loadProfile, simulation.isSimulating]);
 
 	// --- Keyboard Shortcuts (Undo/Redo) ---
 	useEffect(() => {
@@ -297,34 +298,88 @@ export default function Canvas() {
 									<div className="w-px h-4 bg-[var(--color-border)]" />
 
 									<div className="flex items-center gap-4 px-4 border-r border-[var(--color-border)] py-1">
-										{/* Volume Style RPS Control */}
-										<div className="flex flex-col gap-1 w-48">
-											<div className="flex justify-between items-center">
-												<span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Load Volume</span>
-												<span className={`text-[10px] font-mono font-bold ${simulation.targetRps > 75000 ? 'text-red-500' :
-													simulation.targetRps > 40000 ? 'text-yellow-500' : 'text-emerald-500'
-													}`}>
-													{numberFormatter.format(simulation.targetRps)} RPS
+										{/* Load Profile Control */}
+										<div className="relative flex flex-col gap-1 w-32">
+											<div className="flex justify-between items-center cursor-pointer" onClick={() => setIsLoadProfileOpen(!isLoadProfileOpen)}>
+												<span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Load Profile</span>
+												<span className="text-[10px] font-mono font-bold text-blue-400 hover:text-blue-300">
+													{simulation.loadProfile.type.toUpperCase()}
 												</span>
 											</div>
-											<div className="relative flex items-center group h-4">
-												<input
-													type="range"
-													min="0"
-													max="100000"
-													step="1000"
-													value={simulation.targetRps}
-													onChange={(e) => useStore.getState().setTargetRps(parseInt(e.target.value))}
-													className="w-full h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-all"
-													style={{
-														background: `linear-gradient(to right, ${simulation.targetRps > 75000 ? '#ef4444' :
-															simulation.targetRps > 40000 ? '#f59e0b' : '#10b981'
-															} 0%, ${simulation.targetRps > 75000 ? '#ef4444' :
-																simulation.targetRps > 40000 ? '#f59e0b' : '#10b981'
-															} ${(simulation.targetRps / 100000) * 100}%, #1f2330 ${(simulation.targetRps / 100000) * 100}%, #1f2330 100%)`
-													}}
-												/>
+											<div className="flex items-center cursor-pointer" onClick={() => setIsLoadProfileOpen(!isLoadProfileOpen)}>
+												<span className="text-xs text-white px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded min-w-full text-center border border-[var(--color-border)] transition-colors truncate">
+													{simulation.loadProfile.type === 'flat'
+														? `${numberFormatter.format(simulation.loadProfile.baseRps)} RPS`
+														: `${numberFormatter.format(simulation.loadProfile.baseRps)} → ${numberFormatter.format(simulation.loadProfile.peakRps)}`}
+												</span>
 											</div>
+
+											<AnimatePresence>
+												{isLoadProfileOpen && (
+													<motion.div
+														initial={{ opacity: 0, y: 10 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: 10 }}
+														className="absolute top-full mt-3 left-0 w-64 bg-[#0f111a] border border-[var(--color-border)] p-4 rounded-xl shadow-2xl z-50 flex flex-col gap-4"
+													>
+														<div>
+															<h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Pattern Curve</h4>
+															<select
+																className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																value={simulation.loadProfile.type}
+																onChange={(e) => useStore.getState().updateLoadProfile({ type: e.target.value as any })}
+															>
+																<option value="flat">Static / Flat</option>
+																<option value="spike">Sudden Spike</option>
+																<option value="step">Step Function</option>
+															</select>
+														</div>
+
+														<div className="flex flex-col gap-1.5">
+															<label className="text-xs font-medium text-[var(--color-text-muted)]">Base RPS</label>
+															<input
+																type="number"
+																className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																value={simulation.loadProfile.baseRps}
+																onChange={e => useStore.getState().updateLoadProfile({ baseRps: parseInt(e.target.value) || 0 })}
+																min={0}
+															/>
+														</div>
+
+														{simulation.loadProfile.type !== 'flat' && (
+															<>
+																<div className="flex flex-col gap-1.5 pt-2 border-t border-[var(--color-border)]">
+																	<label className="text-xs font-medium text-[var(--color-text-muted)] flex justify-between">
+																		Peak RPS
+																		<span className="opacity-50">Max Load</span>
+																	</label>
+																	<input
+																		type="number"
+																		className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																		value={simulation.loadProfile.peakRps}
+																		onChange={e => useStore.getState().updateLoadProfile({ peakRps: parseInt(e.target.value) || 0 })}
+																		min={0}
+																	/>
+																</div>
+																<div className="flex flex-col gap-1.5">
+																	<label className="text-xs font-medium text-[var(--color-text-muted)] flex justify-between">
+																		Duration
+																		<span className="opacity-50">Seconds</span>
+																	</label>
+																	<input
+																		type="number"
+																		className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																		value={simulation.loadProfile.durationSeconds}
+																		onChange={e => useStore.getState().updateLoadProfile({ durationSeconds: parseInt(e.target.value) || 0 })}
+																		min={1}
+																	/>
+																</div>
+															</>
+														)}
+														<Button size="sm" onClick={() => setIsLoadProfileOpen(false)} className="mt-1">Close Config</Button>
+													</motion.div>
+												)}
+											</AnimatePresence>
 										</div>
 
 										<div className="w-px h-6 bg-[var(--color-border)]" />
@@ -383,7 +438,7 @@ export default function Canvas() {
 											if (currentDesign) {
 												setIsSaving(true);
 												try {
-													await saveDesign(currentDesign.id, nodes, edges, { targetRps: simulation.targetRps }, currentDesign.version);
+													await saveDesign(currentDesign.id, nodes, edges, { loadProfile: simulation.loadProfile }, currentDesign.version);
 												} finally {
 													setIsSaving(false);
 												}

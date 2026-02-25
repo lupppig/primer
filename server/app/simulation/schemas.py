@@ -22,9 +22,16 @@ class SimGraph(BaseModel):
     nodes: Dict[str, SimNode]
     edges: List[SimEdge]
 
+class LoadProfile(BaseModel):
+    type: str # "flat", "spike", "step"
+    baseRps: float = Field(default=100.0, ge=0)
+    peakRps: float = Field(default=1000.0, ge=0)
+    durationSeconds: int = Field(default=30, ge=1)
+
 class SimulationInput(BaseModel):
     graph: SimGraph
     incoming_rps: float = Field(default=100.0, ge=0)
+    load_profile: Optional[LoadProfile] = None
     traffic_pattern: Optional[List[Tuple[int, float]]] = None
     duration_ms: int = Field(default=0, ge=0)
     fail_nodes: Optional[List[str]] = None
