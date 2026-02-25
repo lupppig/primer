@@ -202,7 +202,8 @@ export const useStore = create<AppState>((set, get) => ({
 					replicas: effectivelyFailed ? 0 : (n.data?.replicas ?? 1),
 					queue_size: n.data?.queue_size ?? 5000,
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
-					resilience_config: n.data?.resilience_config ?? null
+					resilience_config: n.data?.resilience_config ?? null,
+					scaling_config: n.data?.scaling_config ?? null
 				};
 			});
 			const simEdges = edges
@@ -288,7 +289,8 @@ export const useStore = create<AppState>((set, get) => ({
 					replicas: n.data?.replicas ?? 1,
 					queue_size: n.data?.queue_size ?? 5000,
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
-					resilience_config: n.data?.resilience_config ?? null
+					resilience_config: n.data?.resilience_config ?? null,
+					scaling_config: n.data?.scaling_config ?? null
 				};
 			});
 
@@ -441,7 +443,8 @@ export const useStore = create<AppState>((set, get) => ({
 					replicas: n.data?.replicas ?? 1,
 					queue_size: n.data?.queue_size ?? 5000,
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
-					resilience_config: n.data?.resilience_config ?? null
+					resilience_config: n.data?.resilience_config ?? null,
+					scaling_config: n.data?.scaling_config ?? null
 				};
 			});
 			const simEdges = edges

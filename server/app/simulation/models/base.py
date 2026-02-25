@@ -14,6 +14,10 @@ class ComponentActor(ABC):
         self.total_requests_in_period = 0
         self.total_failures_in_period = 0
         
+        # Scaling state
+        self.scaling_status = "idle" # "idle", "scaling_up", "scaling_down"
+        self.ticks_since_last_scale = 0
+        
     def reset_tick_metrics(self):
         self.metrics.incoming_rps = 0.0
         self.metrics.effective_rps = 0.0
@@ -22,6 +26,7 @@ class ComponentActor(ABC):
         self.metrics.bottleneck = False
         self.metrics.dropped_requests = 0
         self.metrics.status = "healthy"
+        self.metrics.scaling_status = "idle"
         
     def _update_circuit_breaker(self, has_failures: bool = False):
         config = self.node.resilience_config
@@ -80,6 +85,43 @@ class ComponentActor(ABC):
             self.metrics.status = "degraded"
         else:
             self.metrics.status = "healthy"
+
+    def _update_autoscaling(self):
+        config = self.node.scaling_config
+        if not config or not config.enabled:
+            self.scaling_status = "idle"
+            self.metrics.scaling_status = "idle"
+            return
+
+        self.ticks_since_last_scale += 1
+        
+        # Current utilization from metrics
+        util = self.metrics.utilization
+        
+        # Scaling logic
+        if util > config.target_utilization and self.node.replicas < config.max_replicas:
+            if self.ticks_since_last_scale >= config.scale_up_cooldown_ticks:
+                self.node.replicas += 1
+                self.ticks_since_last_scale = 0
+                self.scaling_status = "scaling_up"
+            else:
+                self.scaling_status = "scaling_up" # Still show scaling if in cooldown but threshold met? 
+                # Actually k8s shows 'ScalingUp' even if waiting. But let's show intent.
+
+        elif util < (config.target_utilization * 0.5) and self.node.replicas > config.min_replicas:
+            # Scale down if util is less than half the target
+            if self.ticks_since_last_scale >= config.scale_down_cooldown_ticks:
+                self.node.replicas -= 1
+                self.ticks_since_last_scale = 0
+                self.scaling_status = "scaling_down"
+            else:
+                self.scaling_status = "scaling_down"
+        else:
+            if self.ticks_since_last_scale > 5: # Small buffer before going back to idle
+                self.scaling_status = "idle"
+
+        self.metrics.scaling_status = self.scaling_status
+        self.metrics.replica_count = self.node.replicas
         
     @abstractmethod
     def process_tick(self) -> NodeMetrics:

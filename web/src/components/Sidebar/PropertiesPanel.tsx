@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
-import { Plus, Minus, BarChart3, Settings2, ShieldAlert } from 'lucide-react';
+import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Node, Edge } from 'reactflow';
 import {
 	LineChart,
@@ -16,7 +16,7 @@ import {
 
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
-	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'metrics'>('config');
+	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'metrics'>('config');
 
 	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
@@ -235,6 +235,76 @@ export default function PropertiesPanel() {
 			);
 		}
 
+		if (activeTab === 'scaling') {
+			const scalingConfig = selectedNode?.data?.scaling_config || {
+				enabled: false,
+				min_replicas: 1,
+				max_replicas: 10,
+				target_utilization: 0.7,
+				scale_up_cooldown_ticks: 5,
+				scale_down_cooldown_ticks: 10
+			};
+
+			const updateScalingConfig = (field: string, value: any) => {
+				updateNodeData('scaling_config', { ...scalingConfig, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="flex items-center justify-between bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div>
+							<span className="text-[12px] font-medium text-white block">Intelligent Scaling</span>
+							<span className="text-[var(--color-text-muted)] tracking-tight">Reactive Horizontal Scaling</span>
+						</div>
+						<button
+							onClick={() => updateScalingConfig('enabled', !scalingConfig.enabled)}
+							className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${scalingConfig.enabled ? 'bg-[#3caff6]' : 'bg-[#2d313a]'}`}
+						>
+							<span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${scalingConfig.enabled ? 'translate-x-5' : 'translate-x-1'}`} />
+						</button>
+					</div>
+
+					<div className={`space-y-5 transition-opacity ${scalingConfig.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Target Utilization
+								<span className="text-white font-bold">{(scalingConfig.target_utilization * 100).toFixed(0)}%</span>
+							</label>
+							<input
+								type="range"
+								min="0.1"
+								max="1.0"
+								step="0.05"
+								value={scalingConfig.target_utilization}
+								onChange={(e) => updateScalingConfig('target_utilization', parseFloat(e.target.value))}
+								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-[#3caff6]"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Scale up when utilization exceeds this limit.</p>
+						</div>
+
+						<div className="grid grid-cols-2 gap-4">
+							<div className="space-y-1.5">
+								<label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Min Replicas</label>
+								<Input type="number" value={scalingConfig.min_replicas} onChange={(e) => updateScalingConfig('min_replicas', parseInt(e.target.value) || 1)} className="bg-[#0f1115] px-2 h-8 text-[11px]" />
+							</div>
+							<div className="space-y-1.5">
+								<label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Max Replicas</label>
+								<Input type="number" value={scalingConfig.max_replicas} onChange={(e) => updateScalingConfig('max_replicas', parseInt(e.target.value) || 1)} className="bg-[#0f1115] px-2 h-8 text-[11px]" />
+							</div>
+						</div>
+
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Cooldown Ticks (Up/Down)</label>
+							<div className="flex gap-2">
+								<Input type="number" value={scalingConfig.scale_up_cooldown_ticks} onChange={(e) => updateScalingConfig('scale_up_cooldown_ticks', parseInt(e.target.value) || 0)} className="bg-[#0f1115] px-2 h-8 text-[11px]" title="Scale Up Cooldown" />
+								<Input type="number" value={scalingConfig.scale_down_cooldown_ticks} onChange={(e) => updateScalingConfig('scale_down_cooldown_ticks', parseInt(e.target.value) || 0)} className="bg-[#0f1115] px-2 h-8 text-[11px]" title="Scale Down Cooldown" />
+							</div>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
 		if (activeTab === 'metrics') {
 			const nodeHistory = simulation.history[selectedNode?.id || ''] || [];
 			return (
@@ -439,6 +509,13 @@ export default function PropertiesPanel() {
 							title="Resilience Policy"
 						>
 							<ShieldAlert className="w-3.5 h-3.5" />
+						</button>
+						<button
+							onClick={() => setActiveTab('scaling')}
+							className={`p-1.5 rounded-md transition-all ${activeTab === 'scaling' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+							title="Scaling Policy"
+						>
+							<Zap className="w-3.5 h-3.5" />
 						</button>
 						<button
 							onClick={() => setActiveTab('metrics')}

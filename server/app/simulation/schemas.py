@@ -7,6 +7,14 @@ class ResilienceConfig(BaseModel):
     recovery_timeout_ticks: int = Field(default=10, ge=1)
     min_request_threshold: int = Field(default=10, ge=1)
 
+class ScalingConfig(BaseModel):
+    enabled: bool = False
+    min_replicas: int = Field(default=1, ge=1)
+    max_replicas: int = Field(default=10, ge=1)
+    target_utilization: float = Field(default=0.7, ge=0.1, le=1.0)
+    scale_up_cooldown_ticks: int = Field(default=5, ge=0)
+    scale_down_cooldown_ticks: int = Field(default=10, ge=0)
+
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
@@ -18,6 +26,7 @@ class SimNode(BaseModel):
     load_balancing_strategy: str = "round_robin" # "round_robin" or "least_latency"
     resources: dict = Field(default_factory=dict)
     resilience_config: Optional[ResilienceConfig] = None
+    scaling_config: Optional[ScalingConfig] = None
 
 class SimEdge(BaseModel):
     id: str
@@ -56,6 +65,7 @@ class NodeMetrics(BaseModel):
     queue_depth: int = 0
     dropped_requests: int = 0
     status: str = "healthy" # "healthy", "degraded", "tripped"
+    scaling_status: str = "idle" # "idle", "scaling_up", "scaling_down"
 
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0

@@ -1,5 +1,5 @@
 import { Handle, Position, NodeResizer } from 'reactflow';
-import { Copy, Trash2, Flame, AlertTriangle, Layers, Zap, ShieldAlert } from 'lucide-react';
+import { Copy, Trash2, Flame, AlertTriangle, Layers, Zap, ShieldAlert, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TECH_COMPONENTS } from '../../utils/iconMap';
@@ -47,6 +47,9 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const nodeMetrics = simulation.isSimulating ? (simulation.nodeMetrics[id] || {}) : {};
 	const isTripped = nodeMetrics.status === 'tripped';
 	const isDegraded = nodeMetrics.status === 'degraded';
+	const scalingStatus = nodeMetrics.scaling_status || 'idle';
+	const isScalingUp = scalingStatus === 'scaling_up';
+	const isScalingDown = scalingStatus === 'scaling_down';
 
 	// RED THEMED FAILURE/BOTTLENECK, ORANGE THEMED CIRCUIT TRIP
 	let statusColor = isFailed || isBottleneck ? '#ef4444' : color;
@@ -128,6 +131,8 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 					</div>
 
 					<div className="flex items-center gap-1.5 shrink-0 ml-2">
+						{isScalingUp && <ChevronUp size={12} className="text-blue-400 animate-bounce" />}
+						{isScalingDown && <ChevronDown size={12} className="text-blue-400 animate-bounce" />}
 						{isTripped && <ShieldAlert size={12} className="text-orange-500 animate-pulse" />}
 						{isBottleneck && <AlertTriangle size={12} className="text-red-500 animate-pulse" />}
 						<div
@@ -222,8 +227,8 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 							<div className="bg-[#0f111a] border border-[#2a2f40] p-3 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex flex-col gap-2">
 								<div className="flex justify-between items-center border-b border-[#2a2f40] pb-1.5 mb-1">
 									<h4 className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">Node Insight</h4>
-									<div className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${nodeMetrics.bottleneck ? 'bg-red-500/10 text-red-500' : (isTripped ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500')}`}>
-										{nodeMetrics.bottleneck ? 'Congested' : (isTripped ? 'Tripped' : 'Healthy')}
+									<div className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${nodeMetrics.bottleneck ? 'bg-red-500/10 text-red-500' : (isTripped ? 'bg-orange-500/10 text-orange-500' : (scalingStatus !== 'idle' ? 'bg-blue-500/10 text-blue-400' : 'bg-green-500/10 text-green-500'))}`}>
+										{nodeMetrics.bottleneck ? 'Congested' : (isTripped ? 'Tripped' : (scalingStatus !== 'idle' ? scalingStatus.replace('_', ' ') : 'Healthy'))}
 									</div>
 								</div>
 

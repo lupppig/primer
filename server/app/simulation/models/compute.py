@@ -7,7 +7,6 @@ class ComputeActor(ComponentActor):
     Used generically for APIs, databases, caches, k8s deployments etc.
     """
     def process_tick(self) -> NodeMetrics:
-        # 1. Check Circuit Breaker State
         if self.cb_state == "OPEN":
             self.metrics.effective_rps = 0.0
             self.metrics.dropped_requests = int(self.metrics.incoming_rps)
@@ -45,10 +44,9 @@ class ComputeActor(ComponentActor):
             self.metrics.bottleneck = True
             self.metrics.failure_reason = "Capacity Saturation"
             
-        self.metrics.replica_count = self.node.replicas
-        
-        # 2. Update Circuit Breaker State for next tick
-        # We consider it a "failure" if there are dropped requests
+        # I consider it a "failure" if there are dropped requests
         self._update_circuit_breaker(has_failures=(self.metrics.dropped_requests > 0))
+        
+        self._update_autoscaling()
         
         return self.metrics
