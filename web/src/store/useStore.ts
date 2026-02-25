@@ -43,6 +43,7 @@ type AppState = {
 	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => void;
 	deleteNode: (id: string) => void;
 	updateNodeData: (id: string, newData: Partial<any>) => void;
+	updateEdgeData: (id: string, newData: Partial<any>) => void;
 	toggleNodeFailure: (id: string) => void;
 	updateEdgeProtocol: (edgeId: string, protocol: 'HTTP' | 'WebSocket' | 'gRPC' | 'UDP') => void;
 	past: { nodes: Node[], edges: Edge[] }[];
@@ -156,6 +157,15 @@ export const useStore = create<AppState>((set, get) => ({
 			)
 		}));
 	},
+	updateEdgeData: (id: string, newData: Partial<any>) => {
+		set(state => ({
+			edges: state.edges.map(e =>
+				e.id === id
+					? { ...e, data: { ...e.data, ...newData } }
+					: e
+			)
+		}));
+	},
 	toggleNodeFailure: (id: string) => {
 		const state = get();
 		const currentChaos = state.simulation.chaosNodes;
@@ -192,7 +202,7 @@ export const useStore = create<AppState>((set, get) => ({
 					id: e.id,
 					source: e.source,
 					target: e.target,
-					traffic_percent: 1.0 // 100% fan-out per edge MVP
+					traffic_percent: e.data?.traffic_percent ?? 1.0
 				}));
 			const payload = {
 				incoming_rps: get().simulation.targetRps,
@@ -278,7 +288,7 @@ export const useStore = create<AppState>((set, get) => ({
 					id: e.id,
 					source: e.source,
 					target: e.target,
-					traffic_percent: 1.0 // 100% fan-out per edge MVP
+					traffic_percent: e.data?.traffic_percent ?? 1.0
 				}));
 
 			const payload = {
@@ -423,7 +433,7 @@ export const useStore = create<AppState>((set, get) => ({
 					id: e.id,
 					source: e.source,
 					target: e.target,
-					traffic_percent: 1.0
+					traffic_percent: e.data?.traffic_percent ?? 1.0
 				}));
 			const payload = {
 				incoming_rps: rps,

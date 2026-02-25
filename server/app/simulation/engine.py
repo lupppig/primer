@@ -111,42 +111,17 @@ class Simulator:
             if metrics.latency != float('inf') and metrics.latency > max_latency:
                 max_latency = metrics.latency
                 
-            # Traffic Distribution based on Load Balancing Strategy
+            # Phase 4: Explicit Traffic Distribution 
+            # We no longer assume 100% full fan-out automatically. Traffic is split
+            # across target edges based explicitly on the edge's configured `traffic_percent` (0.0 to 1.0)
             targets = adj_list[node_id]
             if not targets:
                 total_throughput += metrics.effective_rps
                 continue
 
-            strategy = actor.node.load_balancing_strategy
-            
-            if strategy == "least_latency" and len(targets) > 1:
-                # Distribution logic: targets with lower latency get more traffic
-                # Using the latency from the current tick (just calculated above)
-                target_latencies = {t_id: self.actors[t_id].metrics.latency for t_id, _ in targets}
-                # Handle infinite/failed latencies
-                valid_latencies = {t_id: lat for t_id, lat in target_latencies.items() if lat != float('inf') and lat > 0}
-                
-                if valid_latencies:
-                    # Weights are inverse to latency
-                    total_inv_latency = sum(1.0 / lat for lat in valid_latencies.values())
-                    for target_id, traffic_pct in targets:
-                        if target_id in valid_latencies:
-                            share = (1.0 / valid_latencies[target_id]) / total_inv_latency
-                            child_incoming = metrics.effective_rps * share * traffic_pct
-                        else:
-                            child_incoming = 0 # Failed target gets no traffic
-                        self.actors[target_id].metrics.incoming_rps += child_incoming
-                else:
-                    # All targets failed or infinite, fallback to equal distribution
-                    share = 1.0 / len(targets)
-                    for target_id, traffic_pct in targets:
-                        self.actors[target_id].metrics.incoming_rps += metrics.effective_rps * share * traffic_pct
-            else:
-                # Default: Equal distribution (Round Robin / Static)
-                share = 1.0 / len(targets)
-                for target_id, traffic_pct in targets:
-                    child_incoming = metrics.effective_rps * share * traffic_pct
-                    self.actors[target_id].metrics.incoming_rps += child_incoming
+            for target_id, traffic_pct in targets:
+                child_incoming = metrics.effective_rps * traffic_pct
+                self.actors[target_id].metrics.incoming_rps += child_incoming
                 
         gm = GraphMetrics(
             total_throughput=total_throughput,

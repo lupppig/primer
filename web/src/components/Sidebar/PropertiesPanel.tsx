@@ -2,13 +2,14 @@ import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
 import { Plus, Minus } from 'lucide-react';
-import type { Node } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
 
 export default function PropertiesPanel() {
-	const { nodes, setNodes, simulation, setTargetRps } = useStore();
+	const { nodes, edges, setNodes, simulation, setTargetRps } = useStore();
 
-	// Find the currently selected node
+	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
+	const selectedEdge = edges.find(e => e.selected) as Edge | undefined;
 
 	// Helper to update specific data field on the selected node
 	const updateNodeData = (field: string, value: any) => {
@@ -36,7 +37,16 @@ export default function PropertiesPanel() {
 		}
 	};
 
-	if (!selectedNode) {
+	const updateEdgeData = (field: string, value: any) => {
+		if (!selectedEdge) return;
+		useStore.getState().updateEdgeData(selectedEdge.id, { [field]: value });
+
+		if (simulation.isSimulating) {
+			setTargetRps(simulation.targetRps);
+		}
+	};
+
+	if (!selectedNode && !selectedEdge) {
 		return (
 			<div className="flex-1 flex items-center justify-center text-sm text-[var(--color-text-muted)] p-8 text-center ml-2">
 				Click on any component or connection to view its properties here.
@@ -44,7 +54,42 @@ export default function PropertiesPanel() {
 		);
 	}
 
-	if (selectedNode.type === 'textNode') {
+	if (selectedEdge) {
+		const trafficPercent = selectedEdge.data?.traffic_percent !== undefined ? selectedEdge.data.traffic_percent : 1.0;
+		return (
+			<div className="p-4 flex flex-col gap-6 pl-10 overflow-y-auto">
+				<div>
+					<h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+						Connection Configuration
+					</h4>
+					<div className="space-y-4">
+						<div className="space-y-1.5 border-b border-[var(--color-border)] pb-4 mb-2">
+							<label className="text-sm font-medium text-white flex justify-between tracking-wide">
+								Traffic Split
+								<span className="text-[var(--color-text-muted)] text-xs font-normal">{(trafficPercent * 100).toFixed(0)}%</span>
+							</label>
+							<div className="flex items-center gap-3">
+								<input
+									type="range"
+									min="0"
+									max="1"
+									step="0.05"
+									value={trafficPercent}
+									onChange={(e) => updateEdgeData('traffic_percent', parseFloat(e.target.value))}
+									className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-[#3caff6]"
+								/>
+							</div>
+							<p className="text-xs text-[var(--color-text-muted)] mt-2">
+								Percentage of request fan-out from the source component flowing down this specific path.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (selectedNode?.type === 'textNode') {
 		const fontSize = selectedNode.data.fontSize ?? 14;
 		return (
 			<div className="p-4 flex flex-col gap-6 pl-10 overflow-y-auto">
@@ -90,7 +135,7 @@ export default function PropertiesPanel() {
 		);
 	}
 
-	if (selectedNode.type === 'groupNode') {
+	if (selectedNode?.type === 'groupNode') {
 		const labelValue = selectedNode.data.label || '';
 		return (
 			<div className="p-4 flex flex-col gap-6 pl-10 overflow-y-auto">
@@ -118,13 +163,15 @@ export default function PropertiesPanel() {
 		);
 	}
 
-	// Defaults handled gracefully if not yet set on drop
-	const capacity = selectedNode.data.capacity_rps ?? 1000;
-	const replicas = selectedNode.data.replicas ?? 1;
-	const latency = selectedNode.data.base_latency_ms ?? 10;
-	const queueSize = selectedNode.data.queue_size ?? 5000;
-	const displayLabel = selectedNode.data.label || 'Component';
-	const labelValue = selectedNode.data.label || '';
+	if (!selectedNode || selectedNode.type === 'textNode' || selectedNode.type === 'groupNode') return null;
+
+	// Defaults handled gracefully if not yet set on drop (Nodes Only Here Below)
+	const capacity = selectedNode?.data?.capacity_rps ?? 1000;
+	const replicas = selectedNode?.data?.replicas ?? 1;
+	const latency = selectedNode?.data?.base_latency_ms ?? 10;
+	const queueSize = selectedNode?.data?.queue_size ?? 5000;
+	const displayLabel = selectedNode?.data?.label || 'Component';
+	const labelValue = selectedNode?.data?.label || '';
 
 	const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => displayLabel.toLowerCase().includes(q));
 
@@ -193,13 +240,13 @@ export default function PropertiesPanel() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 hover:bg-[#1a1c23] shrink-0 border border-transparent hover:border-[#333]"
-								onClick={() => updateNodeData('rate_limit_rps', Math.max(0, (selectedNode.data.rate_limit_rps || 100) - 10))}
+								onClick={() => updateNodeData('rate_limit_rps', Math.max(0, (selectedNode?.data?.rate_limit_rps || 100) - 10))}
 							>
 								<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
 							</Button>
 							<Input
 								type="number"
-								value={selectedNode.data.rate_limit_rps || ''}
+								value={selectedNode?.data?.rate_limit_rps || ''}
 								placeholder="None"
 								onChange={(e) => updateNodeData('rate_limit_rps', e.target.value === '' ? null : parseInt(e.target.value))}
 								className="bg-[#0f1115] text-center px-1"
@@ -209,7 +256,7 @@ export default function PropertiesPanel() {
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 hover:bg-[#1a1c23] shrink-0 border border-transparent hover:border-[#333]"
-								onClick={() => updateNodeData('rate_limit_rps', (selectedNode.data.rate_limit_rps || 0) + 10)}
+								onClick={() => updateNodeData('rate_limit_rps', (selectedNode?.data?.rate_limit_rps || 0) + 10)}
 							>
 								<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
 							</Button>

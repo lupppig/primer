@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Primer - Architecture Simulation Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#5048e5",
+                        "primary-light": "#817bf0",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#121121",
+                        "success": "#10B981",
+                        "warning": "#F59E0B",
+                        "surface": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                    animation: {
+                        'flow': 'flow 1s linear infinite',
+                        'flow-slow': 'flow 3s linear infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        flow: {
+                            '0%': { strokeDashoffset: '20' },
+                            '100%': { strokeDashoffset: '0' },
+                        }
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom pattern for the canvas background */
+        .bg-dot-pattern {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        /* Hide scrollbar for cleaner UI */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 bg-surface dark:bg-[#1a192e] px-6 py-3 z-30 shrink-0 shadow-sm">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3 text-slate-900 dark:text-slate-50">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">architecture</span>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-tight">Primer</h2>
+</div>
+<div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+<nav class="flex items-center gap-2 text-sm">
+<a class="text-slate-500 hover:text-primary transition-colors font-medium" href="#">Projects</a>
+<span class="text-slate-400">/</span>
+<a class="text-slate-500 hover:text-primary transition-colors font-medium" href="#">E-Commerce Backend</a>
+<span class="text-slate-400">/</span>
+<span class="flex items-center gap-2 bg-primary/10 text-primary px-2 py-1 rounded text-xs font-semibold uppercase tracking-wide">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+                    Simulation Mode
+                </span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+<button class="px-3 py-1.5 rounded text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors">Edit</button>
+<button class="px-3 py-1.5 rounded bg-white dark:bg-slate-700 shadow-sm text-sm font-medium text-primary transition-colors">Simulate</button>
+</div>
+<div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+<div class="flex gap-3">
+<button class="text-slate-500 hover:text-primary transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 size-2 bg-red-500 rounded-full border-2 border-white dark:border-[#1a192e]"></span>
+</button>
+<button class="text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="size-8 rounded-full bg-slate-200 overflow-hidden border border-slate-200">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADJeqRx6mfGgp3taUhsdhF40h8trOeRWxWqM6vDfobyrWFaUKWqKxkhbIsCPrRYvQ-pwPFJ5Yg9VR1fZ2uAdPN2H0VTrq6PV7lGM6qpljxUSvq9njQ1rc2PkpiCBioOpzBKUErXcFfMrSjtgs8ecQ9LaHSqSMWxLyloNtpkkbTvb1-m8WwkF-1MKesOwCOENX8x267gCb7y5wACnFL7cO4kukH4vmUtxdXTCePza7XEA_fR4UYH5nhmXLLD0hVoYxj3Ecc4Ed-qIhc"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Canvas Area -->
+<main class="flex-1 relative overflow-hidden bg-dot-pattern bg-background-light dark:bg-[#0f0e1b] cursor-grab active:cursor-grabbing group/canvas">
+<!-- Interactive Elements Overlay (Absolute Positioned for simplicity in this demo) -->
+<div class="absolute inset-0 z-10 pointer-events-none">
+<!-- SVG Layer for Connecting Lines -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+<defs>
+<marker id="arrowhead-green" markerheight="7" markerwidth="10" orient="auto" refx="9" refy="3.5">
+<polygon fill="#10B981" points="0 0, 10 3.5, 0 7"></polygon>
+</marker>
+<marker id="arrowhead-orange" markerheight="7" markerwidth="10" orient="auto" refx="9" refy="3.5">
+<polygon fill="#F59E0B" points="0 0, 10 3.5, 0 7"></polygon>
+</marker>
+</defs>
+<!-- Connection: LB -> Web Server A -->
+<path class="dark:stroke-slate-700" d="M 280 250 C 350 250, 400 250, 480 180" fill="none" stroke="#cbd5e1" stroke-width="2"></path>
+<path class="animate-flow" d="M 280 250 C 350 250, 400 250, 480 180" fill="none" marker-end="url(#arrowhead-green)" stroke="#10B981" stroke-dasharray="8,8" stroke-width="2"></path>
+<!-- Connection: LB -> Web Server B -->
+<path class="dark:stroke-slate-700" d="M 280 250 C 350 250, 400 250, 480 320" fill="none" stroke="#cbd5e1" stroke-width="2"></path>
+<path class="animate-flow" d="M 280 250 C 350 250, 400 250, 480 320" fill="none" marker-end="url(#arrowhead-green)" stroke="#10B981" stroke-dasharray="8,8" stroke-width="2"></path>
+<!-- Connection: Web Server A -> Database -->
+<path class="dark:stroke-slate-700" d="M 730 180 C 800 180, 800 250, 880 250" fill="none" stroke="#cbd5e1" stroke-width="2"></path>
+<path class="animate-flow" d="M 730 180 C 800 180, 800 250, 880 250" fill="none" marker-end="url(#arrowhead-green)" stroke="#10B981" stroke-dasharray="8,8" stroke-width="2"></path>
+<!-- Connection: Web Server B -> Database (BOTTLENECK) -->
+<path class="dark:stroke-orange-900/30" d="M 730 320 C 800 320, 800 250, 880 250" fill="none" stroke="#fed7aa" stroke-width="4"></path>
+<path class="animate-flow-slow" d="M 730 320 C 800 320, 800 250, 880 250" fill="none" marker-end="url(#arrowhead-orange)" stroke="#F59E0B" stroke-dasharray="6,6" stroke-width="3"></path>
+</svg>
+<!-- Node: Load Balancer -->
+<div class="absolute top-[200px] left-[80px] w-48 bg-white dark:bg-[#1e1d2b] rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-200 dark:border-slate-700 p-4 pointer-events-auto hover:border-primary transition-all cursor-pointer">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<div class="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400">
+<span class="material-symbols-outlined text-[20px]">alt_route</span>
+</div>
+<span class="font-semibold text-sm text-slate-800 dark:text-slate-200">Load Balancer</span>
+</div>
+<span class="size-2 rounded-full bg-success"></span>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs text-slate-500">
+<span>Requests/sec</span>
+<span class="font-mono text-slate-700 dark:text-slate-300">1,240</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+<div class="bg-success h-full rounded-full" style="width: 45%"></div>
+</div>
+</div>
+</div>
+<!-- Node: Web Server A -->
+<div class="absolute top-[130px] left-[480px] w-64 bg-white dark:bg-[#1e1d2b] rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-200 dark:border-slate-700 p-4 pointer-events-auto hover:border-primary transition-all cursor-pointer">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<div class="bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded-lg text-blue-600 dark:text-blue-400">
+<span class="material-symbols-outlined text-[20px]">dns</span>
+</div>
+<div class="flex flex-col">
+<span class="font-semibold text-sm text-slate-800 dark:text-slate-200">Web Server A</span>
+<span class="text-[10px] text-slate-400 uppercase tracking-wider">t3.medium</span>
+</div>
+</div>
+<span class="size-2 rounded-full bg-success"></span>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-2">
+<div>
+<span class="text-[10px] text-slate-400 block mb-1">CPU Load</span>
+<div class="flex items-end gap-1">
+<span class="text-sm font-bold text-slate-700 dark:text-slate-300 font-mono">24%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-1">
+<div class="bg-blue-500 h-full rounded-full" style="width: 24%"></div>
+</div>
+</div>
+<div>
+<span class="text-[10px] text-slate-400 block mb-1">Memory</span>
+<div class="flex items-end gap-1">
+<span class="text-sm font-bold text-slate-700 dark:text-slate-300 font-mono">4.2GB</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-1">
+<div class="bg-purple-500 h-full rounded-full" style="width: 40%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Node: Web Server B (ISSUE) -->
+<div class="absolute top-[270px] left-[480px] w-64 bg-white dark:bg-[#1e1d2b] rounded-xl shadow-[0_0_0_2px_#F59E0B] border-transparent p-4 pointer-events-auto relative cursor-pointer">
+<!-- Alert Icon -->
+<div class="absolute -top-3 -right-3 bg-warning text-white rounded-full p-1 shadow-md animate-pulse">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+</div>
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<div class="bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded-lg text-blue-600 dark:text-blue-400">
+<span class="material-symbols-outlined text-[20px]">dns</span>
+</div>
+<div class="flex flex-col">
+<span class="font-semibold text-sm text-slate-800 dark:text-slate-200">Web Server B</span>
+<span class="text-[10px] text-slate-400 uppercase tracking-wider">t3.medium</span>
+</div>
+</div>
+<span class="size-2 rounded-full bg-warning animate-pulse"></span>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-2">
+<div>
+<span class="text-[10px] text-slate-400 block mb-1">CPU Load</span>
+<div class="flex items-end gap-1">
+<span class="text-sm font-bold text-warning font-mono">88%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-1">
+<div class="bg-warning h-full rounded-full" style="width: 88%"></div>
+</div>
+</div>
+<div>
+<span class="text-[10px] text-slate-400 block mb-1">Memory</span>
+<div class="flex items-end gap-1">
+<span class="text-sm font-bold text-slate-700 dark:text-slate-300 font-mono">6.8GB</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-1">
+<div class="bg-purple-500 h-full rounded-full" style="width: 65%"></div>
+</div>
+</div>
+</div>
+<!-- TOOLTIP: Metric Overlay -->
+<div class="absolute top-1/2 left-full ml-4 -translate-y-1/2 w-48 bg-slate-900 text-white p-3 rounded-lg shadow-xl z-50 pointer-events-none">
+<div class="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-3 h-3 bg-slate-900 rotate-45"></div>
+<div class="relative z-10 flex flex-col gap-2">
+<h4 class="text-xs font-medium text-slate-400 border-b border-slate-700 pb-1 mb-1">Real-time Metrics</h4>
+<div class="flex justify-between items-center">
+<span class="text-xs text-slate-300">CPU Usage</span>
+<span class="text-xs font-mono font-bold text-warning">88%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-slate-300">Latency</span>
+<span class="text-xs font-mono font-bold text-red-400">450ms</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-slate-300">Throughput</span>
+<span class="text-xs font-mono">45 req/s</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Node: Database -->
+<div class="absolute top-[200px] left-[880px] w-48 bg-white dark:bg-[#1e1d2b] rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-200 dark:border-slate-700 p-4 pointer-events-auto hover:border-primary transition-all cursor-pointer">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<div class="bg-orange-100 dark:bg-orange-900/30 p-1.5 rounded-lg text-orange-600 dark:text-orange-400">
+<span class="material-symbols-outlined text-[20px]">database</span>
+</div>
+<span class="font-semibold text-sm text-slate-800 dark:text-slate-200">Primary DB</span>
+</div>
+<span class="size-2 rounded-full bg-success"></span>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs text-slate-500">
+<span>IOPS</span>
+<span class="font-mono text-slate-700 dark:text-slate-300">3,500</span>
+</div>
+<div class="flex justify-between text-xs text-slate-500">
+<span>Connections</span>
+<span class="font-mono text-slate-700 dark:text-slate-300">85/100</span>
+</div>
+</div>
+</div>
+<!-- Side Controls (Zoom) -->
+<div class="absolute right-6 bottom-32 flex flex-col gap-2 pointer-events-auto">
+<div class="flex flex-col bg-white dark:bg-[#1e1d2b] rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+<button class="p-2 text-slate-500 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-700 rounded-t-lg">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<button class="p-2 text-slate-500 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-b-lg">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+</div>
+<button class="bg-white dark:bg-[#1e1d2b] p-2 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">center_focus_strong</span>
+</button>
+</div>
+</div>
+<!-- Simulation Control Bar (Bottom Center) -->
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+<div class="flex items-center gap-6 bg-white dark:bg-[#1e1d2b] px-6 py-3 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-slate-200 dark:border-slate-700">
+<!-- Time Display -->
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Elapsed</span>
+<span class="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">00:45s</span>
+</div>
+<div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+<!-- Playback Controls -->
+<div class="flex items-center gap-2">
+<button class="size-10 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all" title="Stop Simulation">
+<span class="material-symbols-outlined fill-current">stop</span>
+</button>
+<button class="size-12 bg-primary hover:bg-primary-light text-white rounded-full flex items-center justify-center shadow-lg shadow-primary/30 transition-all active:scale-95" title="Pause Simulation">
+<span class="material-symbols-outlined text-[28px] fill-current">pause</span>
+</button>
+<button class="size-10 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="Reset">
+<span class="material-symbols-outlined">restart_alt</span>
+</button>
+</div>
+<div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+<!-- Speed Control -->
+<div class="flex items-center gap-3">
+<span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Speed</span>
+<div class="flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 relative">
+<!-- Active Indicator Background -->
+<div class="absolute left-1 top-1 bottom-1 w-[34px] bg-white dark:bg-slate-600 rounded-full shadow-sm transition-all duration-300"></div>
+<button class="relative w-[34px] h-[24px] text-xs font-medium text-slate-900 dark:text-slate-100 z-10 text-center leading-[24px]">1x</button>
+<button class="relative w-[34px] h-[24px] text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 z-10 text-center leading-[24px]">2x</button>
+<button class="relative w-[34px] h-[24px] text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 z-10 text-center leading-[24px]">4x</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Sidebar / Toolbar -->
+<aside class="absolute top-[72px] left-6 bottom-0 w-14 z-20 pointer-events-none flex flex-col gap-4">
+<!-- Floating toolbar container -->
+<div class="bg-white dark:bg-[#1e1d2b] rounded-full shadow-lg border border-slate-200 dark:border-slate-700 py-4 flex flex-col items-center gap-4 pointer-events-auto">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:bg-primary/5 transition-all group relative" title="Add Component">
+<span class="material-symbols-outlined">add_box</span>
+<span class="absolute left-12 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Add Node</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:bg-primary/5 transition-all" title="Connections">
+<span class="material-symbols-outlined">polyline</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:bg-primary/5 transition-all" title="Comments">
+<span class="material-symbols-outlined">comment</span>
+</button>
+<div class="w-8 h-px bg-slate-200 dark:bg-slate-700"></div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-primary bg-primary/10 border border-primary/20 transition-all" title="Simulation Mode">
+<span class="material-symbols-outlined fill-current">play_circle</span>
+</button>
+</div>
+</aside>
+</body></html>
