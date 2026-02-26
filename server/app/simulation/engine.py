@@ -33,6 +33,9 @@ LATENCY_MATRIX = {
 from app.simulation.models.base import ComponentActor
 from app.simulation.models.compute import ComputeActor
 from app.simulation.models.queue import QueueActor
+from app.simulation.models.cdn import CDNActor
+from app.simulation.models.firewall import FirewallActor
+import random
 
 class Simulator:
     """
@@ -88,6 +91,10 @@ class Simulator:
             if node_id not in self.actors:
                 if node_data.type == 'queue':
                     self.actors[node_id] = QueueActor(node_data)
+                elif node_data.type == 'cdn':
+                    self.actors[node_id] = CDNActor(node_data)
+                elif node_data.type == 'firewall':
+                    self.actors[node_id] = FirewallActor(node_data)
                 else:
                     self.actors[node_id] = ComputeActor(node_data)
             else:
@@ -162,13 +169,38 @@ class Simulator:
                 continue
 
             for target_id, traffic_pct in targets:
-                # Apply cross-region Network Latency penalty
+                # Find the actual edge object to get chaos configs
+                edge = next((e for e in graph.edges if e.source == node_id and e.target == target_id), None)
+                if not edge:
+                    continue
+                
+                # 1. Protocol Whitelisting Enforcement (Ingress & Egress)
+                source_node = actor.node
+                target_node = graph.nodes[target_id]
+                
+                # Check source Egress rules
+                if source_node.protocol_whitelist and edge.protocol not in source_node.protocol_whitelist:
+                    continue
+                    
+                # Check target Ingress rules
+                if target_node.protocol_whitelist and edge.protocol not in target_node.protocol_whitelist:
+                    continue
+
+                # 2. Chaos: Packet Loss
+                # Deterministically reduce traffic based on loss pct
+                loss_factor = 1.0 - (edge.packet_loss_pct / 100.0)
+                child_incoming = metrics.effective_rps * traffic_pct * loss_factor
+                
+                # 3. Chaos: Jitter & Network Latency
                 source_region = actor.node.region
                 target_region = self.actors[target_id].node.region
                 
                 net_latency = LATENCY_MATRIX.get(source_region, {}).get(target_region, 0.0)
                 
-                child_incoming = metrics.effective_rps * traffic_pct
+                # Apply Jitter (random variation)
+                if edge.jitter_ms > 0:
+                    net_latency += random.uniform(-edge.jitter_ms, edge.jitter_ms)
+                    net_latency = max(0.0, net_latency)
                 
                 # Accumulate weighted network latency for the child
                 self.actors[target_id].net_latency_accumulator += (net_latency * child_incoming)

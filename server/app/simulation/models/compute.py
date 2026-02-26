@@ -41,6 +41,29 @@ class ComputeActor(ComponentActor):
         # Calculate component utilization ratio
         self.metrics.utilization = (load_to_process / total_capacity) if total_capacity > 0 else (1.0 if load_to_process > 0 else 0.0)
         
+        # 2b. Storage I/O Modeling
+        if self.node.storage_config:
+            s_config = self.node.storage_config
+            # IOPS is proportional to RPS
+            # Throughput is estimated as average payload size (e.g. 100KB)
+            avg_payload_mb = 0.1 
+            estimated_throughput = self.metrics.incoming_rps * avg_payload_mb
+            
+            iops_util = (self.metrics.incoming_rps / s_config.iops_limit) if s_config.iops_limit > 0 else 0.0
+            thru_util = (estimated_throughput / s_config.bandwidth_mbps) if s_config.bandwidth_mbps > 0 else 0.0
+            
+            self.metrics.storage_utilization = max(iops_util, thru_util)
+            
+            if self.metrics.storage_utilization > 1.0:
+                # Storage is saturated! This adds significant latency.
+                self.metrics.storage_latency = 100.0 * (self.metrics.storage_utilization - 1.0)
+                # Also cap the total capacity by the storage bottleneck
+                storage_capped_capacity = min(s_config.iops_limit, s_config.bandwidth_mbps / avg_payload_mb)
+                total_capacity = min(total_capacity, storage_capped_capacity)
+                self.metrics.bottleneck = True
+            else:
+                self.metrics.storage_latency = 0.0
+        
         # Bound effective RPS by physical capacity
         self.metrics.effective_rps = min(self.metrics.incoming_rps, total_capacity)
         
@@ -65,7 +88,11 @@ class ComputeActor(ComponentActor):
             else:
                 self.metrics.latency = calc_latency
                 
-            self.metrics.bottleneck = False
+            # Apply storage penalty
+            self.metrics.latency += self.metrics.storage_latency
+                
+            if not (self.node.storage_config and self.metrics.storage_utilization > 1.0):
+                self.metrics.bottleneck = False
             self.metrics.failure_reason = None
         else:
             self.metrics.latency = 9999.9

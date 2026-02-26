@@ -67,6 +67,59 @@ type AppState = {
 
 let ws: WebSocket | null = null;
 
+const _getSimGraph = (nodes: Node[], edges: Edge[], chaosNodes: string[]) => {
+	const simNodes: any = {};
+	nodes.forEach(n => {
+		if (n.type !== 'techNode') return;
+		const lbl = (n.data?.label || '').toLowerCase();
+		const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
+		const isCDN = ['cdn', 'edge', 'cloudfront'].some(q => lbl.includes(q));
+		const isFirewall = ['firewall', 'waf', 'security', 'shield'].some(q => lbl.includes(q));
+		const isLB = ['lb', 'balancer', 'nginx', 'proxy'].some(q => lbl.includes(q));
+
+		let nodeType = 'api';
+		if (isQueue) nodeType = 'queue';
+		else if (isCDN) nodeType = 'cdn';
+		else if (isFirewall) nodeType = 'firewall';
+		else if (isLB) nodeType = 'lb';
+
+		const effectivelyFailed = chaosNodes.includes(n.id);
+
+		simNodes[n.id] = {
+			id: n.id,
+			type: nodeType,
+			capacity_rps: effectivelyFailed ? 0.0 : (n.data?.capacity_rps ?? 1000),
+			base_latency_ms: n.data?.base_latency_ms ?? 10,
+			replicas: effectivelyFailed ? 0 : (n.data?.replicas ?? 1),
+			queue_size: n.data?.queue_size ?? 5000,
+			rate_limit_rps: n.data?.rate_limit_rps ?? null,
+			resilience_config: n.data?.resilience_config ?? null,
+			scaling_config: n.data?.scaling_config ?? null,
+			cost_config: n.data?.cost_config ?? null,
+			mesh_config: n.data?.mesh_config ?? null,
+			cache_config: n.data?.cache_config ?? null,
+			database_config: n.data?.database_config ?? null,
+			storage_config: n.data?.storage_config ?? null,
+			protocol_whitelist: n.data?.protocol_whitelist ?? null,
+			region: n.data?.region ?? 'us-east-1'
+		};
+	});
+
+	const simEdges = edges
+		.filter(e => simNodes[e.source] && simNodes[e.target])
+		.map(e => ({
+			id: e.id,
+			source: e.source,
+			target: e.target,
+			traffic_percent: e.data?.traffic_percent ?? 1.0,
+			protocol: e.data?.protocol ?? 'HTTP',
+			packet_loss_pct: e.data?.packet_loss_pct ?? 0.0,
+			jitter_ms: e.data?.jitter_ms ?? 0.0
+		}));
+
+	return { nodes: simNodes, edges: simEdges };
+};
+
 export const useStore = create<AppState>((set, get) => ({
 	nodes: [],
 	edges: [],
@@ -187,44 +240,11 @@ export const useStore = create<AppState>((set, get) => ({
 
 		if (ws && ws.readyState === WebSocket.OPEN) {
 			const { nodes, edges } = get();
-			const simNodes: any = {};
-			nodes.forEach(n => {
-				if (n.type !== 'techNode') return;
-				const lbl = (n.data?.label || '').toLowerCase();
-				const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
-
-				// Apply Chaos constraint
-				const effectivelyFailed = newChaos.includes(n.id);
-
-				simNodes[n.id] = {
-					id: n.id,
-					type: isQueue ? 'queue' : 'api',
-					capacity_rps: effectivelyFailed ? 0.0 : (n.data?.capacity_rps ?? 1000), // Chaos cuts capacity
-					base_latency_ms: n.data?.base_latency_ms ?? 10,
-					replicas: effectivelyFailed ? 0 : (n.data?.replicas ?? 1),
-					queue_size: n.data?.queue_size ?? 5000,
-					rate_limit_rps: n.data?.rate_limit_rps ?? null,
-					resilience_config: n.data?.resilience_config ?? null,
-					scaling_config: n.data?.scaling_config ?? null,
-					cost_config: n.data?.cost_config ?? null,
-					mesh_config: n.data?.mesh_config ?? null,
-					cache_config: n.data?.cache_config ?? null,
-					database_config: n.data?.database_config ?? null,
-					region: n.data?.region ?? 'us-east-1'
-				};
-			});
-			const simEdges = edges
-				.filter(e => simNodes[e.source] && simNodes[e.target]) // Only include edges between valid tech nodes
-				.map(e => ({
-					id: e.id,
-					source: e.source,
-					target: e.target,
-					traffic_percent: e.data?.traffic_percent ?? 1.0
-				}));
+			const graph = _getSimGraph(nodes, edges, newChaos);
 			const payload = {
 				incoming_rps: get().simulation.loadProfile.baseRps,
 				load_profile: get().simulation.loadProfile,
-				graph: { nodes: simNodes, edges: simEdges }
+				graph
 			};
 			ws.send(JSON.stringify(payload));
 		}
@@ -282,48 +302,14 @@ export const useStore = create<AppState>((set, get) => ({
 		const { nodes, edges } = get();
 
 		if (isSimulating) {
-			const simNodes: any = {};
-			nodes.forEach(n => {
-				if (n.type !== 'techNode') return;
-
-				const lbl = (n.data?.label || '').toLowerCase();
-				const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
-				simNodes[n.id] = {
-					id: n.id,
-					type: isQueue ? 'queue' : 'api',
-					capacity_rps: n.data?.capacity_rps ?? 1000,
-					base_latency_ms: n.data?.base_latency_ms ?? 10,
-					replicas: n.data?.replicas ?? 1,
-					queue_size: n.data?.queue_size ?? 5000,
-					rate_limit_rps: n.data?.rate_limit_rps ?? null,
-					resilience_config: n.data?.resilience_config ?? null,
-					scaling_config: n.data?.scaling_config ?? null,
-					cost_config: n.data?.cost_config ?? null,
-					mesh_config: n.data?.mesh_config ?? null,
-					cache_config: n.data?.cache_config ?? null,
-					database_config: n.data?.database_config ?? null,
-					region: n.data?.region ?? 'us-east-1'
-				};
-			});
-
-			const simEdges = edges
-				.filter(e => simNodes[e.source] && simNodes[e.target]) // Only include edges between valid tech nodes
-				.map(e => ({
-					id: e.id,
-					source: e.source,
-					target: e.target,
-					traffic_percent: e.data?.traffic_percent ?? 1.0
-				}));
+			const graph = _getSimGraph(nodes, edges, get().simulation.chaosNodes);
 
 			const payload = {
 				design_id: designId,
 				incoming_rps: get().simulation.loadProfile.baseRps,
 				load_profile: get().simulation.loadProfile,
 				sim_speed: get().simulation.simSpeed,
-				graph: {
-					nodes: simNodes,
-					edges: simEdges
-				}
+				graph
 			};
 
 			ws = new WebSocket('ws://localhost:8000/api/v1/simulation/ws');
@@ -444,42 +430,13 @@ export const useStore = create<AppState>((set, get) => ({
 		}));
 		if (ws && ws.readyState === WebSocket.OPEN) {
 			const { nodes, edges } = get();
-			const simNodes: any = {};
-			nodes.forEach(n => {
-				// Only include tech nodes in the simulation
-				if (n.type !== 'techNode') return;
+			const graph = _getSimGraph(nodes, edges, get().simulation.chaosNodes);
 
-				const lbl = (n.data?.label || '').toLowerCase();
-				const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => lbl.includes(q));
-				simNodes[n.id] = {
-					id: n.id,
-					type: isQueue ? 'queue' : 'api',
-					capacity_rps: n.data?.capacity_rps ?? 1000,
-					base_latency_ms: n.data?.base_latency_ms ?? 10,
-					replicas: n.data?.replicas ?? 1,
-					queue_size: n.data?.queue_size ?? 5000,
-					rate_limit_rps: n.data?.rate_limit_rps ?? null,
-					resilience_config: n.data?.resilience_config ?? null,
-					scaling_config: n.data?.scaling_config ?? null,
-					cost_config: n.data?.cost_config ?? null,
-					mesh_config: n.data?.mesh_config ?? null,
-					cache_config: n.data?.cache_config ?? null,
-					database_config: n.data?.database_config ?? null
-				};
-			});
-			const simEdges = edges
-				.filter(e => simNodes[e.source] && simNodes[e.target]) // Only include edges between valid tech nodes
-				.map(e => ({
-					id: e.id,
-					source: e.source,
-					target: e.target,
-					traffic_percent: e.data?.traffic_percent ?? 1.0
-				}));
 			const payload = {
 				incoming_rps: get().simulation.loadProfile.baseRps,
 				load_profile: get().simulation.loadProfile,
 				sim_speed: get().simulation.simSpeed,
-				graph: { nodes: simNodes, edges: simEdges }
+				graph
 			};
 			ws.send(JSON.stringify(payload));
 		}

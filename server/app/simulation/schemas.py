@@ -8,6 +8,19 @@ class Region(str, Enum):
     EU_CENTRAL = "eu-central-1"
     AP_SOUTHEAST = "ap-southeast-1"
 
+class NodeType(str, Enum):
+    API = "api"
+    DATABASE = "db"
+    CACHE = "cache"
+    QUEUE = "queue"
+    CDN = "cdn"
+    FIREWALL = "firewall"
+    DOCKER = "docker"
+    K8S = "k8s"
+    LOAD_BALANCER = "lb"
+    API_GATEWAY = "gateway"
+    STORAGE = "storage" # Object storage, S3 etc
+
 class ResilienceConfig(BaseModel):
     circuit_breaker_enabled: bool = False
     failure_threshold_pct: float = Field(default=50.0, ge=0.0, le=100.0)
@@ -40,6 +53,10 @@ class DatabaseConfig(BaseModel):
     write_capacity_rps: float = Field(default=500.0, ge=0)
     replication_lag_ms: float = Field(default=100.0, ge=0)
 
+class StorageConfig(BaseModel):
+    iops_limit: float = Field(default=1000.0, ge=0)
+    bandwidth_mbps: float = Field(default=100.0, ge=0)
+
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
@@ -57,12 +74,17 @@ class SimNode(BaseModel):
     mesh_config: Optional[MeshConfig] = None
     cache_config: Optional[CacheConfig] = None
     database_config: Optional[DatabaseConfig] = None
+    storage_config: Optional[StorageConfig] = None
+    protocol_whitelist: Optional[List[str]] = None
 
 class SimEdge(BaseModel):
     id: str
     source: str  # maps to from_node
     target: str  # maps to to_node
     traffic_percent: float = Field(default=1.0, ge=0.0, le=1.0)
+    packet_loss_pct: float = Field(default=0.0, ge=0.0, le=100.0)
+    jitter_ms: float = Field(default=0.0, ge=0.0)
+    protocol: str = "HTTP" # Used for validation against whitelist
 
 class SimGraph(BaseModel):
     nodes: Dict[str, SimNode]
@@ -101,6 +123,8 @@ class NodeMetrics(BaseModel):
     cache_hit_rate: float = 0.0
     read_latency: float = 0.0
     network_latency: float = 0.0
+    storage_utilization: float = 0.0 # IOPS/Bandwidth saturation
+    storage_latency: float = 0.0
 
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0

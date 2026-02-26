@@ -1,6 +1,6 @@
 import pytest
 from app.simulation.schemas import SimGraph, SimNode, SimEdge
-from app.simulation.engine import SimulationEngine
+from app.simulation.engine import Simulator
 
 def test_topological_sort_valid():
     graph = SimGraph(
@@ -15,7 +15,7 @@ def test_topological_sort_valid():
         ]
     )
     
-    sorted_nodes = SimulationEngine.topological_sort(graph)
+    sorted_nodes = Simulator.topological_sort(graph)
     assert sorted_nodes == ["A", "B", "C"]
 
 def test_topological_sort_cycle():
@@ -31,9 +31,10 @@ def test_topological_sort_cycle():
     )
     
     with pytest.raises(ValueError, match="Cycle detected"):
-        SimulationEngine.topological_sort(graph)
+        Simulator.topological_sort(graph)
 
 def test_compute_tick_basic_flow():
+    sim = Simulator("test")
     graph = SimGraph(
         nodes={
             "API": SimNode(id="API", type="api", capacity_rps=1000, base_latency_ms=20),
@@ -45,7 +46,7 @@ def test_compute_tick_basic_flow():
     )
     
     # Send 100 RPS into the system
-    result = SimulationEngine.compute_tick(graph, incoming_rps=100.0)
+    result = sim.process_tick(graph, incoming_rps=100.0)
     
     assert result.nodes["API"].incoming_rps == 100.0
     assert result.nodes["API"].effective_rps == 100.0
@@ -59,6 +60,7 @@ def test_compute_tick_basic_flow():
     assert result.graph_metrics.total_throughput == 100.0
 
 def test_compute_tick_bottleneck_and_fanout():
+    sim = Simulator("test")
     graph = SimGraph(
         nodes={
             "API": SimNode(id="API", type="api", capacity_rps=1000, replicas=2), # 2000 total
@@ -72,7 +74,7 @@ def test_compute_tick_bottleneck_and_fanout():
     )
     
     # Send 1500 RPS
-    result = SimulationEngine.compute_tick(graph, incoming_rps=1500.0)
+    result = sim.process_tick(graph, incoming_rps=1500.0)
     
     # API handles it all (1500 < 2000)
     assert result.nodes["API"].effective_rps == 1500.0

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
-import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown, DollarSign, Coins, Layers, Database } from 'lucide-react';
+import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown, DollarSign, Coins, Layers, Database, HardDrive, ShieldCheck } from 'lucide-react';
 import type { Node, Edge } from 'reactflow';
 import {
 	LineChart,
@@ -23,7 +23,7 @@ const REGIONS = [
 
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
-	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'metrics'>('config');
+	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'storage' | 'security' | 'metrics'>('config');
 
 	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
@@ -76,6 +76,10 @@ export default function PropertiesPanel() {
 	const renderContent = () => {
 		if (selectedEdge) {
 			const trafficPercent = selectedEdge.data?.traffic_percent !== undefined ? selectedEdge.data.traffic_percent : 1.0;
+			const packetLoss = selectedEdge.data?.packet_loss_pct ?? 0.0;
+			const jitter = selectedEdge.data?.jitter_ms ?? 0.0;
+			const protocol = selectedEdge.data?.protocol ?? 'HTTP';
+
 			return (
 				<div className="space-y-4">
 					<div className="space-y-1.5 border-b border-[var(--color-border)] pb-4 mb-2">
@@ -94,9 +98,58 @@ export default function PropertiesPanel() {
 								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-[#3caff6]"
 							/>
 						</div>
-						<p className="text-xs text-[var(--color-text-muted)] mt-2">
-							Percentage of request fan-out from the source component flowing down this specific path.
-						</p>
+					</div>
+
+					<div className="space-y-1.5 border-b border-[var(--color-border)] pb-4 mb-2">
+						<label className="text-sm font-medium text-white flex justify-between">
+							Communication Protocol
+						</label>
+						<select
+							value={protocol}
+							onChange={(e) => updateEdgeData('protocol', e.target.value)}
+							className="w-full bg-[#0f1115] border border-[var(--color-border)]/50 rounded-md px-2 h-9 text-[11px] text-white focus:outline-none focus:border-[#3caff6] transition-colors"
+						>
+							<option value="HTTP">HTTP</option>
+							<option value="WebSocket">WebSocket</option>
+							<option value="gRPC">gRPC</option>
+							<option value="UDP">UDP</option>
+						</select>
+					</div>
+
+					<div className="space-y-4 pt-2">
+						<h5 className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest flex items-center gap-2">
+							<Zap size={10} className="text-orange-400" /> Network Chaos
+						</h5>
+						<div className="space-y-1.5">
+							<label className="text-xs font-medium text-[var(--color-text-muted)] flex justify-between">
+								Packet Loss
+								<span className="text-white font-bold">{packetLoss}%</span>
+							</label>
+							<input
+								type="range"
+								min="0"
+								max="50"
+								step="1"
+								value={packetLoss}
+								onChange={(e) => updateEdgeData('packet_loss_pct', parseInt(e.target.value))}
+								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-red-500"
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<label className="text-xs font-medium text-[var(--color-text-muted)] flex justify-between">
+								Jitter (Random Latency)
+								<span className="text-white font-bold">{jitter}ms</span>
+							</label>
+							<input
+								type="range"
+								min="0"
+								max="100"
+								step="5"
+								value={jitter}
+								onChange={(e) => updateEdgeData('jitter_ms', parseInt(e.target.value))}
+								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-orange-500"
+							/>
+						</div>
 					</div>
 				</div>
 			);
@@ -567,6 +620,97 @@ export default function PropertiesPanel() {
 			);
 		}
 
+		if (activeTab === 'storage') {
+			const storageConfig = selectedNode?.data?.storage_config || {
+				iops_limit: 1000,
+				bandwidth_mbps: 100
+			};
+
+			const updateStorageConfig = (field: string, value: any) => {
+				updateNodeData('storage_config', { ...storageConfig, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-blue-400">
+							<HardDrive size={14} />
+							<span className="text-[12px] font-medium text-white block">Storage I/O Configuration</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Model disk bottlenecks via IOPS and throughput caps.</p>
+					</div>
+
+					<div className="space-y-5">
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								IOPS Limit
+								<span className="text-white font-bold">{storageConfig.iops_limit}</span>
+							</label>
+							<Input
+								type="number"
+								value={storageConfig.iops_limit}
+								onChange={(e) => updateStorageConfig('iops_limit', parseInt(e.target.value) || 0)}
+								className="bg-[#0f1115] px-2 h-8 text-[11px]"
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Bandwidth (MB/s)
+								<span className="text-white font-bold">{storageConfig.bandwidth_mbps}</span>
+							</label>
+							<Input
+								type="number"
+								value={storageConfig.bandwidth_mbps}
+								onChange={(e) => updateStorageConfig('bandwidth_mbps', parseInt(e.target.value) || 0)}
+								className="bg-[#0f1115] px-2 h-8 text-[11px]"
+							/>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
+		if (activeTab === 'security') {
+			const whitelist = selectedNode?.data?.protocol_whitelist || [];
+			const protocols = ['HTTP', 'WebSocket', 'gRPC', 'UDP'];
+
+			const toggleProtocol = (proto: string) => {
+				const newList = whitelist.includes(proto)
+					? whitelist.filter((p: string) => p !== proto)
+					: [...whitelist, proto];
+				updateNodeData('protocol_whitelist', newList.length > 0 ? newList : null);
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-emerald-400">
+							<ShieldCheck size={14} />
+							<span className="text-[12px] font-medium text-white block">Security Enforcement</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Restrict incoming traffic to specific protocols.</p>
+					</div>
+
+					<div className="space-y-3">
+						<label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Protocol Whitelist</label>
+						<div className="grid grid-cols-2 gap-2">
+							{protocols.map(proto => (
+								<button
+									key={proto}
+									onClick={() => toggleProtocol(proto)}
+									className={`flex items-center justify-between px-3 py-2 rounded-lg border text-[11px] transition-all ${whitelist.includes(proto) ? 'bg-[#3caff6]/10 border-[#3caff6] text-white' : 'bg-[#0f1115] border-[var(--color-border)]/50 text-[var(--color-text-muted)]'}`}
+								>
+									{proto}
+									{whitelist.includes(proto) && <Plus className="w-3 h-3 rotate-45" />}
+								</button>
+							))}
+						</div>
+						<p className="text-[10px] text-[var(--color-text-muted)] mt-2">Traffic using other protocols will be blocked by the firewall/node.</p>
+					</div>
+				</div>
+			);
+		}
+
 		if (activeTab === 'metrics') {
 			const nodeHistory = simulation.history[selectedNode?.id || ''] || [];
 			return (
@@ -838,6 +982,20 @@ export default function PropertiesPanel() {
 								<Database className="w-3.5 h-3.5" />
 							</button>
 						)}
+						<button
+							onClick={() => setActiveTab('storage')}
+							className={`p-1.5 rounded-md transition-all ${activeTab === 'storage' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+							title="Storage Configuration"
+						>
+							<HardDrive className="w-3.5 h-3.5" />
+						</button>
+						<button
+							onClick={() => setActiveTab('security')}
+							className={`p-1.5 rounded-md transition-all ${activeTab === 'security' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+							title="Security & Firewall"
+						>
+							<ShieldCheck className="w-3.5 h-3.5" />
+						</button>
 						<button
 							onClick={() => setActiveTab('metrics')}
 							className={`p-1.5 rounded-md transition-all ${activeTab === 'metrics' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}

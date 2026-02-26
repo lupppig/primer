@@ -70,10 +70,13 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	};
 
 	// Determine component category for specialized metrics
-	const isDb = ['db', 'postgres', 'sql', 'mongo', 'rds', 'cassandra', 'database'].some(d => componentType.includes(d));
-	const isCache = ['redis', 'memcached', 'cache'].some(c => componentType.includes(c));
-	const isLb = ['elb', 'load balancer', 'nginx', 'ha', 'gateway', 'proxy'].some(l => componentType.includes(l));
+	const isDb = ['db', 'postgres', 'sql', 'mongo', 'rds', 'cassandra', 'database', 'storage'].some(d => componentType.includes(d));
+	const isCache = ['redis', 'memcached', 'cache', 'cdn', 'cloudflare'].some(c => componentType.includes(c));
+	const isLb = ['elb', 'load balancer', 'nginx', 'ha', 'gateway', 'proxy', 'api gateway'].some(l => componentType.includes(l));
 	const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => componentType.includes(q));
+	const isFirewall = ['firewall', 'shield', 'security', 'waf'].some(f => componentType.includes(f));
+	const isCdn = ['cdn', 'cloudflare', 'cloudfront', 'edge'].some(c => componentType.includes(c));
+	const isStorage = ['storage', 'disk', 's3', 'bucket', 'nas', 'san'].some(s => componentType.includes(s));
 
 	const handleClasses = `w-2 h-2 rounded-full border border-white/20 bg-[var(--color-panel)] transition-all duration-200 hover:scale-150 hover:bg-[var(--color-primary)] active:bg-[var(--color-primary)] z-10 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`;
 
@@ -154,6 +157,21 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 								<div className="flex flex-col gap-1">
 									<MetricRow label="Throughput" value={`${Math.round(effectiveRps)} rps`} trend="up" color={statusColor} />
 									<MetricRow label="Latency" value={`${Math.round(latency)}ms`} trend="down" color="#fbbf24" />
+								</div>
+							) : isCdn ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="Edge Hit Rate" value={`${Math.round(85 + (utilization * 10))}%`} color="#F38020" />
+									<MetricRow label="Egress" value={`${Math.round(effectiveRps)}/s`} color="#3caff6" />
+								</div>
+							) : isFirewall ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="Filtered" value={numberFormat(nodeMetrics.dropped_requests || 0)} color="#ef4444" />
+									<MetricRow label="Allowed" value={numberFormat(effectiveRps)} color="#10b981" />
+								</div>
+							) : isStorage ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="IOPS Use" value={`${Math.round(utilization * 100)}%`} color="#64748B" />
+									<MetricRow label="Throughput" value={`${(utilization * 250).toFixed(0)}MB/s`} color="#3b82f6" />
 								</div>
 							) : isDb ? (
 								<div className="flex flex-col gap-1">

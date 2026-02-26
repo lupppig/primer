@@ -84,6 +84,9 @@ export const COMPONENT_CATEGORIES = [
 			{ type: 'Istio', icon: SiIstio, color: '#466BB0' },
 			{ type: 'Traefik', icon: SiTraefikproxy, color: '#24A1C1' },
 			{ type: 'HAProxy', icon: Network, color: '#1A1869' },
+			{ type: 'Firewall', icon: Shield, color: '#ef4444' },
+			{ type: 'API Gateway', icon: Webhook, color: '#ec4899' },
+			{ type: 'CDN', icon: SiCloudflare, color: '#F38020' },
 		]
 	},
 	{
@@ -145,6 +148,7 @@ export const COMPONENT_CATEGORIES = [
 			{ type: 'App Server', icon: Network, color: '#8b5cf6' },
 			{ type: 'Event Bus', icon: MessageSquare, color: '#f97316' },
 			{ type: 'Internal Messaging', icon: Repeat, color: '#10b981' },
+			{ type: 'Storage', icon: HardDrive, color: '#64748B' },
 		]
 	},
 	{
