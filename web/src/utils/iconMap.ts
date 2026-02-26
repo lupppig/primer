@@ -13,7 +13,7 @@ import { VscAzure } from 'react-icons/vsc';
 import { DiMsqlServer } from 'react-icons/di';
 import {
 	Database, ArrowRight, Minus, Activity, LayoutTemplate, Network,
-	Shield, LayoutDashboard, Users, PlaySquare, MessageSquare, Bell, UserCheck, HardDrive, FileText, Webhook, Repeat, RefreshCw, Cuboid,
+	Shield, LayoutDashboard, Users, PlaySquare, MessageSquare, Bell, UserCheck, HardDrive, FileText, Webhook, Repeat, Cuboid,
 	Laptop, Smartphone, Settings
 } from 'lucide-react';
 
@@ -122,11 +122,11 @@ export const COMPONENT_CATEGORIES = [
 		]
 	},
 	{
-		name: 'Events & Hooks',
+		name: 'Resilience & Deployment',
 		items: [
-			{ type: 'Webhook', icon: Webhook, color: '#EC4899' },
-			{ type: 'Callback', icon: Repeat, color: '#14B8A6' },
-			{ type: 'Retry Queue', icon: RefreshCw, color: '#8B5CF6' },
+			{ type: 'Dead Letter Queue', icon: Bell, color: '#ef4444' },
+			{ type: 'Traffic Splitter', icon: Repeat, color: '#3b82f6' },
+			{ type: 'Canary Gate', icon: UserCheck, color: '#10b981' },
 		]
 	},
 	{

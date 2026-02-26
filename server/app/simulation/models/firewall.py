@@ -16,10 +16,10 @@ class FirewallActor(ComponentActor):
         # but the firewall actor itself handles the "service" latency.
         load_to_process = self.metrics.incoming_rps
         self.metrics.utilization = (load_to_process / total_capacity) if total_capacity > 0 else 0.0
-        
+
         # Firewall is almost always transparent unless saturated
         self.metrics.effective_rps = min(self.metrics.incoming_rps, total_capacity)
-        
+
         # Latency is base + utilization wait time
         # DPI adds a constant 0.5ms per request by default
         dpi_penalty = 0.5 

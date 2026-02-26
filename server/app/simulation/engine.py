@@ -35,6 +35,8 @@ from app.simulation.models.compute import ComputeActor
 from app.simulation.models.queue import QueueActor
 from app.simulation.models.cdn import CDNActor
 from app.simulation.models.firewall import FirewallActor
+from app.simulation.models.splitter import TrafficSplitterActor
+from app.simulation.models.dlq import DeadLetterQueueActor
 import random
 
 class Simulator:
@@ -95,6 +97,10 @@ class Simulator:
                     self.actors[node_id] = CDNActor(node_data)
                 elif node_data.type == 'firewall':
                     self.actors[node_id] = FirewallActor(node_data)
+                elif node_data.type == 'dlq':
+                    self.actors[node_id] = DeadLetterQueueActor(node_data)
+                elif node_data.type == 'splitter':
+                    self.actors[node_id] = TrafficSplitterActor(node_data)
                 else:
                     self.actors[node_id] = ComputeActor(node_data)
             else:
@@ -159,6 +165,16 @@ class Simulator:
             
             if metrics.bottleneck:
                 bottlenecks.append(node_id)
+            
+            # 1b. Dead Letter Queue (DLQ) Routing
+            if metrics.dropped_requests > 0:
+                # Find if this node has an outgoing edge to a DLQ node
+                dlq_targets = [target_id for target_id, _ in adj_list[node_id] if graph.nodes[target_id].type == 'dlq']
+                if dlq_targets:
+                    # Distribute dropped requests across available DLQs (usually just one)
+                    dropped_per_dlq = metrics.dropped_requests / len(dlq_targets)
+                    for dlq_id in dlq_targets:
+                        self.actors[dlq_id].metrics.incoming_rps += dropped_per_dlq
                 
             if metrics.latency != 9999.9 and metrics.latency > max_latency:
                 max_latency = metrics.latency
@@ -168,7 +184,44 @@ class Simulator:
                 total_throughput += metrics.effective_rps
                 continue
 
+            # --- Adaptive Load Balancing / Routing ---
+            # If adaptive routing is enabled, we redistribute traffic from unhealthy nodes
+            use_adaptive = False
+            if actor.node.splitter_config and actor.node.splitter_config.adaptive_routing:
+                use_adaptive = True
+            
+            # Identify "usable" targets (ignoring DLQs for main traffic redistribution)
+            usable_targets = []
+            total_weight_of_usable = 0.0
+            
             for target_id, traffic_pct in targets:
+                target_actor = self.actors[target_id]
+                
+                # Check persistent health state (Circuit Breaker) + current tick status
+                # cb_state is NOT reset every tick, so it's a reliable indicator of "tripped"
+                is_tripped = hasattr(target_actor, 'cb_state') and target_actor.cb_state == "OPEN"
+                is_unhealthy = is_tripped or (target_actor.metrics.status in ["tripped", "degraded"])
+                
+                # We skip DLQs for weight redistribution as they handle "dropped" traffic specifically
+                if target_actor.node.type == 'dlq':
+                    usable_targets.append((target_id, traffic_pct, False))
+                    continue
+                
+                if use_adaptive and is_unhealthy:
+                    # Skip routing to unhealthy nodes if adaptive is on
+                    usable_targets.append((target_id, traffic_pct, True)) # is_skipped=True
+                else:
+                    usable_targets.append((target_id, traffic_pct, False))
+                    total_weight_of_usable += traffic_pct
+
+            # Calculate redistribution factor if we skipped some nodes
+            redistribution_factor = 1.0
+            if use_adaptive and total_weight_of_usable > 0 and total_weight_of_usable < 1.0:
+                 # We have some healthy nodes and some unhealthy ones
+                 # We want to scale the healthy weights to sum to 1.0 (or whatever the total split was)
+                 redistribution_factor = 1.0 / total_weight_of_usable
+
+            for target_id, traffic_pct, is_skipped in usable_targets:
                 # Find the actual edge object to get chaos configs
                 edge = next((e for e in graph.edges if e.source == node_id and e.target == target_id), None)
                 if not edge:
@@ -186,10 +239,17 @@ class Simulator:
                 if target_node.protocol_whitelist and edge.protocol not in target_node.protocol_whitelist:
                     continue
 
-                # 2. Chaos: Packet Loss
+                # 2. Chaos: Packet Loss & Adaptive Skipping
                 # Deterministically reduce traffic based on loss pct
                 loss_factor = 1.0 - (edge.packet_loss_pct / 100.0)
-                child_incoming = metrics.effective_rps * traffic_pct * loss_factor
+                
+                effective_pct = traffic_pct
+                if is_skipped:
+                    effective_pct = 0.0
+                elif use_adaptive and target_node.type != 'dlq':
+                    effective_pct = traffic_pct * redistribution_factor
+
+                child_incoming = metrics.effective_rps * effective_pct * loss_factor
                 
                 # 3. Chaos: Jitter & Network Latency
                 source_region = actor.node.region

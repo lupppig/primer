@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
-import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown, DollarSign, Coins, Layers, Database, HardDrive, ShieldCheck } from 'lucide-react';
+import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, DollarSign, Layers, Database, HardDrive, ShieldCheck, Repeat } from 'lucide-react';
 import type { Node, Edge } from 'reactflow';
 import {
 	LineChart,
@@ -23,7 +23,7 @@ const REGIONS = [
 
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
-	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'storage' | 'security' | 'metrics'>('config');
+	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'storage' | 'security' | 'metrics' | 'deployment'>('config');
 
 	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
@@ -499,6 +499,23 @@ export default function PropertiesPanel() {
 							</div>
 							<p className="text-[10px] text-[var(--color-text-muted)]">Latency penalty applied per retry attempt.</p>
 						</div>
+
+						<div className="space-y-1.5 pt-4 border-t border-[var(--color-border)]/30">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Retry Budget
+								<span className="text-white font-bold">{meshConfig.retry_budget_pct}%</span>
+							</label>
+							<input
+								type="range"
+								min="0"
+								max="100"
+								step="5"
+								value={meshConfig.retry_budget_pct || 20}
+								onChange={(e) => updateMeshConfig('retry_budget_pct', parseInt(e.target.value))}
+								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-purple-500"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Max percentage of traffic that can be retried.</p>
+						</div>
 					</div>
 				</div>
 			);
@@ -791,6 +808,71 @@ export default function PropertiesPanel() {
 			);
 		}
 
+		if (activeTab === 'deployment') {
+			const splitterConfig = selectedNode?.data?.splitter_config || { enabled: true, weights: {}, adaptive_routing: false };
+			// Get outgoing edges for this node to show weight controls
+			const outgoingEdges = edges.filter(e => e.source === selectedNode?.id);
+
+			const updateSplitterConfig = (field: string, value: any) => {
+				updateNodeData('splitter_config', { ...splitterConfig, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-blue-400">
+							<Repeat size={14} />
+							<span className="text-[12px] font-medium text-white block">Traffic Shifting</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Manage canary releases and probabilistic load balancing.</p>
+					</div>
+
+					<div className="space-y-5">
+						<div className="flex items-center justify-between bg-blue-500/5 p-3 rounded-xl border border-blue-500/20">
+							<div>
+								<span className="text-xs font-medium text-white block">Adaptive Load Balancing</span>
+								<span className="text-[10px] text-[var(--color-text-muted)] tracking-tight">Shift traffic from unhealthy nodes</span>
+							</div>
+							<button
+								onClick={() => updateSplitterConfig('adaptive_routing', !splitterConfig.adaptive_routing)}
+								className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${splitterConfig.adaptive_routing ? 'bg-[#3caff6]' : 'bg-[#2d313a]'}`}
+							>
+								<span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${splitterConfig.adaptive_routing ? 'translate-x-5' : 'translate-x-1'}`} />
+							</button>
+						</div>
+
+						<h5 className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest border-b border-[var(--color-border)]/30 pb-1">Weights & Routing</h5>
+						{outgoingEdges.length === 0 ? (
+							<p className="text-[10px] text-orange-400 italic">No outgoing connections detected. Connect this splitter to other nodes to manage weights.</p>
+						) : (
+							<div className="space-y-4">
+								{outgoingEdges.map(edge => {
+									const targetNode = nodes.find(n => n.id === edge.target);
+									return (
+										<div key={edge.id} className="space-y-1.5">
+											<label className="text-xs font-medium text-white flex justify-between">
+												To: {targetNode?.data?.label || edge.target}
+												<span className="text-[#3caff6]">{(edge.data?.traffic_percent * 100).toFixed(0)}%</span>
+											</label>
+											<input
+												type="range"
+												min="0"
+												max="1"
+												step="0.05"
+												value={edge.data?.traffic_percent ?? 1.0}
+												onChange={(e) => useStore.getState().updateEdgeData(edge.id, { traffic_percent: parseFloat(e.target.value) })}
+												className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-[#3caff6]"
+											/>
+										</div>
+									);
+								})}
+							</div>
+						)}
+					</div>
+				</div>
+			);
+		}
+
 		// Defaults for Tech Nodes (Config Tab)
 		const capacity = selectedNode?.data?.capacity_rps ?? 1000;
 		const regionId = selectedNode?.data?.region ?? 'us-east-1';
@@ -799,7 +881,7 @@ export default function PropertiesPanel() {
 		const queueSize = selectedNode?.data?.queue_size ?? 5000;
 		const displayLabel = selectedNode?.data?.label || 'Component';
 		const labelValue = selectedNode?.data?.label || '';
-		const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => displayLabel.toLowerCase().includes(q));
+		const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue', 'dlq'].some(q => displayLabel.toLowerCase().includes(q));
 
 		return (
 			<div className="space-y-4">
@@ -1003,6 +1085,15 @@ export default function PropertiesPanel() {
 						>
 							<BarChart3 className="w-3.5 h-3.5" />
 						</button>
+						{(['splitter', 'canary', 'gate', 'shuffle', 'lb', 'gateway'].some(s => displayLabel.toLowerCase().includes(s))) && (
+							<button
+								onClick={() => setActiveTab('deployment')}
+								className={`p-1.5 rounded-md transition-all ${activeTab === 'deployment' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+								title="Deployment & Shifting"
+							>
+								<Repeat className="w-3.5 h-3.5" />
+							</button>
+						)}
 					</div>
 				)}
 			</div>

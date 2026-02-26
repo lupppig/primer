@@ -20,6 +20,8 @@ class NodeType(str, Enum):
     LOAD_BALANCER = "lb"
     API_GATEWAY = "gateway"
     STORAGE = "storage" # Object storage, S3 etc
+    DLQ = "dlq" # Dead Letter Queue
+    SPLITTER = "splitter" # Traffic Splitter / Canary
 
 class ResilienceConfig(BaseModel):
     circuit_breaker_enabled: bool = False
@@ -43,6 +45,7 @@ class MeshConfig(BaseModel):
     retries: int = Field(default=0, ge=0, le=10)
     timeout_ms: float = Field(default=0.0, ge=0.0) # 0 means disabled
     retry_backoff_ms: float = Field(default=10.0, ge=0)
+    retry_budget_pct: float = Field(default=20.0, ge=0.0, le=100.0)
 
 class CacheConfig(BaseModel):
     hit_rate: float = Field(default=0.8, ge=0.0, le=1.0)
@@ -56,6 +59,13 @@ class DatabaseConfig(BaseModel):
 class StorageConfig(BaseModel):
     iops_limit: float = Field(default=1000.0, ge=0)
     bandwidth_mbps: float = Field(default=100.0, ge=0)
+
+class SplitterConfig(BaseModel):
+    # Weights for outgoing regions/targets. 
+    # Usually we rely on SimEdge.traffic_percent, but splitter can override or validate.
+    enabled: bool = True
+    adaptive_routing: bool = False # If true, shifts traffic away from unhealthy targets
+    weights: Dict[str, float] = Field(default_factory=dict) # target_id -> weight
 
 class SimNode(BaseModel):
     id: str
@@ -75,6 +85,7 @@ class SimNode(BaseModel):
     cache_config: Optional[CacheConfig] = None
     database_config: Optional[DatabaseConfig] = None
     storage_config: Optional[StorageConfig] = None
+    splitter_config: Optional[SplitterConfig] = None
     protocol_whitelist: Optional[List[str]] = None
 
 class SimEdge(BaseModel):
@@ -120,6 +131,7 @@ class NodeMetrics(BaseModel):
     scaling_status: str = "idle" # "idle", "scaling_up", "scaling_down"
     tick_cost: float = 0.0
     retry_rps: float = 0.0
+    budget_exhausted: bool = False
     cache_hit_rate: float = 0.0
     read_latency: float = 0.0
     network_latency: float = 0.0

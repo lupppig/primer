@@ -73,10 +73,12 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const isDb = ['db', 'postgres', 'sql', 'mongo', 'rds', 'cassandra', 'database', 'storage'].some(d => componentType.includes(d));
 	const isCache = ['redis', 'memcached', 'cache', 'cdn', 'cloudflare'].some(c => componentType.includes(c));
 	const isLb = ['elb', 'load balancer', 'nginx', 'ha', 'gateway', 'proxy', 'api gateway'].some(l => componentType.includes(l));
-	const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue'].some(q => componentType.includes(q));
+	const isQueue = ['kafka', 'rabbitmq', 'sqs', 'queue', 'dlq'].some(q => componentType.includes(q));
 	const isFirewall = ['firewall', 'shield', 'security', 'waf'].some(f => componentType.includes(f));
 	const isCdn = ['cdn', 'cloudflare', 'cloudfront', 'edge'].some(c => componentType.includes(c));
 	const isStorage = ['storage', 'disk', 's3', 'bucket', 'nas', 'san'].some(s => componentType.includes(s));
+	const isSplitter = ['splitter', 'canary', 'gate', 'shuffle'].some(s => componentType.includes(s));
+	const isDlq = componentType.includes('dlq');
 
 	const handleClasses = `w-2 h-2 rounded-full border border-white/20 bg-[var(--color-panel)] transition-all duration-200 hover:scale-150 hover:bg-[var(--color-primary)] active:bg-[var(--color-primary)] z-10 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`;
 
@@ -185,8 +187,13 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 								</div>
 							) : isQueue ? (
 								<div className="flex flex-col gap-1">
-									<MetricRow label="Q Depth" value={numberFormat(nodeMetrics.queue_depth || 0)} color="#e879f9" />
+									<MetricRow label={isDlq ? "DLQ Depth" : "Q Depth"} value={numberFormat(nodeMetrics.queue_depth || 0)} color={isDlq ? "#f87171" : "#e879f9"} />
 									<MetricRow label="Msg Rate" value={`${Math.round(effectiveRps)}/s`} color="#38bdf8" />
+								</div>
+							) : isSplitter ? (
+								<div className="flex flex-col gap-1">
+									<MetricRow label="Mode" value="Probabilistic" color="#3b82f6" />
+									<MetricRow label="Egress" value={`${Math.round(effectiveRps)}/s`} color="#10b981" />
 								</div>
 							) : (
 								/* Default Compute/Service metrics */
@@ -254,12 +261,12 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 									<TooltipRow label="Raw Ingress" value={`${Math.round(nodeMetrics.incoming_rps || 0)}/s`} />
 									<TooltipRow label="Replicas" value={nodeMetrics.replica_count || 1} />
 									<TooltipRow label="Drop Rate" value={`${Math.round((nodeMetrics.dropped_requests || 0))} pks`} color={nodeMetrics.dropped_requests > 0 ? '#ef4444' : undefined} />
-									<TooltipRow label="Strategy" value={(data.load_balancing_strategy || 'RR').replace('_', ' ')} />
+									<TooltipRow label="Retry RPS" value={Math.round(nodeMetrics.retry_rps || 0)} color={nodeMetrics.budget_exhausted ? '#a855f7' : undefined} />
 								</div>
 
-								{nodeMetrics.failure_reason && (
-									<div className="mt-1 p-1.5 bg-red-500/10 border border-red-500/20 rounded text-[9px] text-red-400 font-medium">
-										Reason: {nodeMetrics.failure_reason}
+								{(nodeMetrics.failure_reason || nodeMetrics.budget_exhausted) && (
+									<div className={`mt-1 p-1.5 border rounded text-[9px] font-medium ${nodeMetrics.budget_exhausted ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+										{nodeMetrics.budget_exhausted ? '⚡ Mesh: Retry Budget Exhausted' : `Reason: ${nodeMetrics.failure_reason}`}
 									</div>
 								)}
 							</div>
