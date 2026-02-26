@@ -77,8 +77,9 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const isFirewall = ['firewall', 'shield', 'security', 'waf'].some(f => componentType.includes(f));
 	const isCdn = ['cdn', 'cloudflare', 'cloudfront', 'edge'].some(c => componentType.includes(c));
 	const isStorage = ['storage', 'disk', 's3', 'bucket', 'nas', 'san'].some(s => componentType.includes(s));
-	const isSplitter = ['splitter', 'canary', 'gate', 'shuffle'].some(s => componentType.includes(s));
-	const isDlq = componentType.includes('dlq');
+	const isDlq = componentType.includes('dlq') || componentType.includes('dead letter');
+	const isSplitter = componentType.includes('splitter') || componentType.includes('canary');
+	const isExternal = data.type === 'external' || componentType.includes('external') || componentType.includes('stripe') || componentType.includes('auth0');
 
 	const handleClasses = `w-2 h-2 rounded-full border border-white/20 bg-[var(--color-panel)] transition-all duration-200 hover:scale-150 hover:bg-[var(--color-primary)] active:bg-[var(--color-primary)] z-10 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`;
 
@@ -93,13 +94,19 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 			/>
 
 			<div
-				className={`relative group w-full h-full bg-[#0f111a]/95 backdrop-blur-sm border-2 rounded-xl shadow-2xl transition-all duration-300 flex flex-col overflow-hidden ${isFailed ? 'grayscale-[0.8] opacity-80' : ''}`}
+				className={`relative group w-full h-full bg-[#0f111a]/95 backdrop-blur-sm border-2 rounded-xl shadow-2xl transition-all duration-300 flex flex-col overflow-hidden ${isFailed ? 'grayscale-[0.8] opacity-80' : ''} ${isExternal ? 'border-dashed' : ''}`}
 				style={{
-					borderColor: borderColor,
+					borderColor: isExternal && !selected ? '#f59e0b50' : borderColor,
 					boxShadow: isTripped ? '0 0 25px -5px #f9731680' : (isBottleneck || isFailed ? '0 0 20px -5px #ef444460' : (selected ? `0 0 15px -5px ${color}40` : 'none'))
 				}}
 				onDoubleClick={() => setIsEditing(true)}
 			>
+				{/* External Badge */}
+				{isExternal && (
+					<div className="absolute top-0 right-0 bg-orange-500 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-bl-lg shadow-lg z-20 uppercase tracking-widest border-l border-b border-[#2a2f40]/50">
+						Ext Provider
+					</div>
+				)}
 				{/* Top Handle */}
 				<Handle type="target" position={Position.Top} id="top" className={handleClasses} />
 				<Handle type="target" position={Position.Left} id="left" className={handleClasses} />

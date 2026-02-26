@@ -37,6 +37,7 @@ from app.simulation.models.cdn import CDNActor
 from app.simulation.models.firewall import FirewallActor
 from app.simulation.models.splitter import TrafficSplitterActor
 from app.simulation.models.dlq import DeadLetterQueueActor
+from app.simulation.models.external_service import ExternalServiceActor
 import random
 
 class Simulator:
@@ -101,6 +102,8 @@ class Simulator:
                     self.actors[node_id] = DeadLetterQueueActor(node_data)
                 elif node_data.type == 'splitter':
                     self.actors[node_id] = TrafficSplitterActor(node_data)
+                elif node_data.type == 'external':
+                    self.actors[node_id] = ExternalServiceActor(node_data)
                 else:
                     self.actors[node_id] = ComputeActor(node_data)
             else:

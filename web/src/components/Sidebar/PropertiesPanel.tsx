@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
-import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, DollarSign, Layers, Database, HardDrive, ShieldCheck, Repeat } from 'lucide-react';
+import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, DollarSign, Layers, Database, HardDrive, ShieldCheck, Repeat, ExternalLink } from 'lucide-react';
 import type { Node, Edge } from 'reactflow';
 import {
 	LineChart,
@@ -23,7 +23,7 @@ const REGIONS = [
 
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
-	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'storage' | 'security' | 'metrics' | 'deployment'>('config');
+	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'storage' | 'security' | 'metrics' | 'deployment' | 'external'>('config');
 
 	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
@@ -873,6 +873,79 @@ export default function PropertiesPanel() {
 			);
 		}
 
+		if (activeTab === 'external') {
+			const config = selectedNode?.data?.external_config || { provider: 'Stripe', availability_sla: 99.9, avg_latency_ms: 100, failure_pattern: 'random', error_rate_pct: 0.1 };
+
+			const updateExternalConfig = (field: string, value: any) => {
+				updateNodeData('external_config', { ...config, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-orange-500/5 p-3 rounded-xl border border-orange-500/20 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-orange-400">
+							<ExternalLink size={14} />
+							<span className="text-[12px] font-medium text-white block">Third-Party Dependency</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">External services impact uptime based on their SLA and failure patterns.</p>
+					</div>
+
+					<div className="space-y-4">
+						<div className="space-y-1.5">
+							<label className="text-xs font-medium text-white">Provider Name</label>
+							<Input
+								value={config.provider}
+								onChange={(e) => updateExternalConfig('provider', e.target.value)}
+								placeholder="e.g. Stripe, Auth0"
+							/>
+						</div>
+
+						<div className="space-y-1.5">
+							<label className="text-xs font-medium text-white flex justify-between">
+								Availability SLA
+								<span className="text-orange-400">{config.availability_sla}%</span>
+							</label>
+							<input
+								type="range"
+								min="90"
+								max="100"
+								step="0.01"
+								value={config.availability_sla}
+								onChange={(e) => updateExternalConfig('availability_sla', parseFloat(e.target.value))}
+								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-orange-500"
+							/>
+						</div>
+
+						<div className="space-y-1.5">
+							<label className="text-xs font-medium text-white flex justify-between">
+								Failure Pattern
+							</label>
+							<select
+								value={config.failure_pattern}
+								onChange={(e) => updateExternalConfig('failure_pattern', e.target.value)}
+								className="w-full bg-[#0f1115] border border-[var(--color-border)]/50 rounded-md px-2 h-9 text-[11px] text-white focus:outline-none focus:border-orange-500 transition-colors"
+							>
+								<option value="random">Random Transient Errors</option>
+								<option value="spiky">Intermittent Outages (Spiky)</option>
+								<option value="maintenance">Scheduled Maintenance</option>
+							</select>
+						</div>
+
+						<div className="space-y-1.5">
+							<label className="text-xs font-medium text-white flex justify-between">
+								Avg Latency (ms)
+							</label>
+							<Input
+								type="number"
+								value={config.avg_latency_ms}
+								onChange={(e) => updateExternalConfig('avg_latency_ms', parseInt(e.target.value) || 0)}
+							/>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
 		// Defaults for Tech Nodes (Config Tab)
 		const capacity = selectedNode?.data?.capacity_rps ?? 1000;
 		const regionId = selectedNode?.data?.region ?? 'us-east-1';
@@ -1001,6 +1074,7 @@ export default function PropertiesPanel() {
 	};
 
 	const displayLabel = selectedNode?.data?.label || (selectedEdge ? 'Connection' : 'Properties');
+	const isExternalNode = selectedNode?.data?.type === 'external' || displayLabel.toLowerCase().includes('external') || displayLabel.toLowerCase().includes('stripe') || displayLabel.toLowerCase().includes('auth0');
 
 	return (
 		<div className="p-4 flex flex-col h-full pl-10">
@@ -1033,51 +1107,21 @@ export default function PropertiesPanel() {
 							<Zap className="w-3.5 h-3.5" />
 						</button>
 						<button
-							onClick={() => setActiveTab('economy')}
-							className={`p-1.5 rounded-md transition-all ${activeTab === 'economy' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-							title="Economy Configuration"
-						>
-							<DollarSign className="w-3.5 h-3.5" />
-						</button>
-						<button
 							onClick={() => setActiveTab('mesh')}
 							className={`p-1.5 rounded-md transition-all ${activeTab === 'mesh' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
 							title="Service Mesh Policy"
 						>
 							<Layers className="w-3.5 h-3.5" />
 						</button>
-						{(['redis', 'memcached', 'cache', 'valkey'].some(c => displayLabel.toLowerCase().includes(c))) && (
+						{isExternalNode && (
 							<button
-								onClick={() => setActiveTab('cache')}
-								className={`p-1.5 rounded-md transition-all ${activeTab === 'cache' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-								title="Cache Settings"
+								onClick={() => setActiveTab('external')}
+								className={`p-1.5 rounded-md transition-all ${activeTab === 'external' ? 'bg-[#f59e0b] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+								title="External Dependency Configuration"
 							>
-								<Zap className="w-3.5 h-3.5" />
+								<ExternalLink className="w-3.5 h-3.5" />
 							</button>
 						)}
-						{(['postgres', 'mysql', 'mongo', 'dynamodb', 'elasticsearch', 'db', 'mariadb', 'sql'].some(db => displayLabel.toLowerCase().includes(db))) && (
-							<button
-								onClick={() => setActiveTab('database')}
-								className={`p-1.5 rounded-md transition-all ${activeTab === 'database' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-								title="Database Architecture"
-							>
-								<Database className="w-3.5 h-3.5" />
-							</button>
-						)}
-						<button
-							onClick={() => setActiveTab('storage')}
-							className={`p-1.5 rounded-md transition-all ${activeTab === 'storage' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-							title="Storage Configuration"
-						>
-							<HardDrive className="w-3.5 h-3.5" />
-						</button>
-						<button
-							onClick={() => setActiveTab('security')}
-							className={`p-1.5 rounded-md transition-all ${activeTab === 'security' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-							title="Security & Firewall"
-						>
-							<ShieldCheck className="w-3.5 h-3.5" />
-						</button>
 						<button
 							onClick={() => setActiveTab('metrics')}
 							className={`p-1.5 rounded-md transition-all ${activeTab === 'metrics' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}

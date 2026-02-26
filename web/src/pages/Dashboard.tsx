@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useDesignStore } from '../store/useDesignStore';
 import { MiniCanvasPreview } from '../components/MiniCanvasPreview';
+import { TICKETING_SYSTEM_TEMPLATE } from '../utils/templates/ticketingSystem';
 
 export default function Dashboard() {
 	const navigate = useNavigate();
@@ -23,10 +24,11 @@ export default function Dashboard() {
 		fetchDesigns();
 	}, [user, navigate, fetchDesigns]);
 
-	const handleCreateDesign = async () => {
+	const handleCreateDesign = async (initialData?: any) => {
 		try {
-			// Creates a blank design in the DB
-			const newId = await createDesign('Untitled', 'A new system design');
+			// Creates a blank or seeded design in the DB
+			const name = initialData ? initialData.name : 'Untitled';
+			const newId = await createDesign(name, initialData?.description || 'A new system design', initialData);
 			navigate(`/canvas?id=${newId}`);
 		} catch (e) {
 			console.error("Failed to create design", e);
@@ -98,7 +100,7 @@ export default function Dashboard() {
 							<h1 className="text-3xl font-heading font-bold text-white tracking-tight">Welcome back, {user?.username || 'Architect'}</h1>
 							<p className="text-[var(--color-text-muted)] mt-1">Pick up where you left off or start a new system design.</p>
 						</div>
-						<Button onClick={handleCreateDesign} className="gap-2 group overflow-hidden relative" isLoading={isLoading}>
+						<Button onClick={() => handleCreateDesign()} className="gap-2 group overflow-hidden relative" isLoading={isLoading}>
 							<motion.div
 								className="absolute inset-0 bg-white/20"
 								initial={{ x: '-100%' }}
@@ -170,12 +172,34 @@ export default function Dashboard() {
 					<section>
 						<h2 className="text-xl font-semibold text-white mb-4">Start from Template</h2>
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+							{/* Functional Professional Template */}
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.3, delay: 0.2 }}
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}
+								onClick={() => handleCreateDesign(TICKETING_SYSTEM_TEMPLATE)}
+							>
+								<Card className="h-full cursor-pointer border-[#3caff6]/50 bg-[#3caff6]/5 hover:bg-[#3caff6]/10 transition-all shadow-lg shadow-[#3caff6]/10">
+									<CardHeader>
+										<CardTitle className="text-base text-[#3caff6] flex items-center justify-between">
+											{TICKETING_SYSTEM_TEMPLATE.name}
+											<div className="text-[10px] bg-[#3caff6] text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">Pro</div>
+										</CardTitle>
+										<CardDescription className="line-clamp-2 mt-2 leading-relaxed">
+											{TICKETING_SYSTEM_TEMPLATE.description}
+										</CardDescription>
+									</CardHeader>
+								</Card>
+							</motion.div>
+
 							{MOCK_TEMPLATES.map((template, i) => (
 								<motion.div
 									key={template.id}
 									initial={{ opacity: 0, y: 20 }}
 									animate={{ opacity: 1, y: 0 }}
-									transition={{ duration: 0.3, delay: 0.2 + (i * 0.1) }}
+									transition={{ duration: 0.3, delay: 0.3 + (i * 0.1) }}
 									whileHover={{ scale: 1.02 }}
 									whileTap={{ scale: 0.98 }}
 								>

@@ -23,7 +23,7 @@ type DesignState = {
 	error: string | null;
 
 	fetchDesigns: () => Promise<void>;
-	createDesign: (name: string, description?: string) => Promise<string>;
+	createDesign: (name: string, description?: string, initialData?: { nodes: any[], edges: any[], settings: any }) => Promise<string>;
 	loadDesign: (id: string) => Promise<void>;
 	saveDesign: (id: string, nodes: any[], edges: any[], settings: Record<string, any>, version: number) => Promise<void>;
 	deleteDesign: (id: string) => Promise<void>;
@@ -46,15 +46,15 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 		}
 	},
 
-	createDesign: async (name, description) => {
+	createDesign: async (name, description, initialData?: { nodes: any[], edges: any[], settings: any }) => {
 		set({ isLoading: true, error: null });
 		try {
 			const response = await api.post('/canvas/design', {
 				name,
 				description,
-				nodes: [],
-				edges: [],
-				settings: {}
+				nodes: initialData?.nodes || [],
+				edges: initialData?.edges || [],
+				settings: initialData?.settings || {}
 			});
 			// Add to list and return ID
 			set((state) => ({

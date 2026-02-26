@@ -30,10 +30,11 @@ export type SimulationState = {
 	loadProfile: LoadProfile;
 	activeBottlenecks: string[];
 	nodeMetrics: Record<string, any>;
-	history: Record<string, any[]>; // For real-time charts
+	history: Record<string, any[]>; // For charts
 	chaosNodes: string[];
 	simSpeed: number; // 1 to 10
 	totalSimulationCost: number;
+	viewMode: 'canvas' | 'dashboard';
 };
 
 type AppState = {
@@ -51,6 +52,7 @@ type AppState = {
 	setSimSpeed: (speed: number) => void;
 	activeTool: string;
 	setActiveTool: (tool: string) => void;
+	setViewMode: (mode: 'canvas' | 'dashboard') => void;
 	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => void;
 	deleteNode: (id: string) => void;
 	updateNodeData: (id: string, newData: Partial<any>) => void;
@@ -76,12 +78,14 @@ const _getSimGraph = (nodes: Node[], edges: Edge[], chaosNodes: string[]) => {
 		const isCDN = ['cdn', 'edge', 'cloudfront'].some(q => lbl.includes(q));
 		const isFirewall = ['firewall', 'waf', 'security', 'shield'].some(q => lbl.includes(q));
 		const isLB = ['lb', 'balancer', 'nginx', 'proxy'].some(q => lbl.includes(q));
+		const isExternal = ['external', 'stripe', 'aws', 'auth0', 'api.', 'ext-'].some(q => lbl.includes(q)) || n.data?.type === 'external';
 
 		let nodeType = 'api';
 		if (isQueue) nodeType = 'queue';
 		else if (isCDN) nodeType = 'cdn';
 		else if (isFirewall) nodeType = 'firewall';
 		else if (isLB) nodeType = 'lb';
+		else if (isExternal) nodeType = 'external';
 
 		const effectivelyFailed = chaosNodes.includes(n.id);
 
@@ -101,7 +105,8 @@ const _getSimGraph = (nodes: Node[], edges: Edge[], chaosNodes: string[]) => {
 			database_config: n.data?.database_config ?? null,
 			storage_config: n.data?.storage_config ?? null,
 			protocol_whitelist: n.data?.protocol_whitelist ?? null,
-			region: n.data?.region ?? 'us-east-1'
+			region: n.data?.region ?? 'us-east-1',
+			external_config: n.data?.external_config ?? null
 		};
 	});
 
@@ -133,6 +138,7 @@ export const useStore = create<AppState>((set, get) => ({
 		chaosNodes: [],
 		simSpeed: 1.0,
 		totalSimulationCost: 0,
+		viewMode: 'canvas',
 	},
 	past: [],
 	future: [],
@@ -186,6 +192,9 @@ export const useStore = create<AppState>((set, get) => ({
 	activeTool: 'select',
 	setActiveTool: (tool: string) => {
 		set({ activeTool: tool });
+	},
+	setViewMode: (mode: 'canvas' | 'dashboard') => {
+		set(state => ({ simulation: { ...state.simulation, viewMode: mode } }));
 	},
 	duplicateNode: (id: string, newPosition?: { x: number, y: number }) => {
 		const state = get();
@@ -337,7 +346,7 @@ export const useStore = create<AppState>((set, get) => ({
 								tickCostSum += metrics.tick_cost || 0;
 								if (!newHistory[nodeId]) newHistory[nodeId] = [];
 								newHistory[nodeId] = [
-									...newHistory[nodeId].slice(-29),
+									...newHistory[nodeId].slice(-999),
 									{ time: data.time, ...metrics }
 								];
 							}

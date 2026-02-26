@@ -6,7 +6,8 @@ import {
 	Shapes,
 	Component,
 	MessageSquare,
-	PenTool
+	PenTool,
+	BarChart3
 } from 'lucide-react';
 import FloatingPopover from './FloatingPopover';
 
@@ -64,6 +65,19 @@ export default function FloatingToolbar() {
 						</button>
 					);
 				})}
+
+				<div className="my-1 border-t border-[var(--color-border)]/50 mx-2" />
+
+				<button
+					onClick={() => useStore.getState().setViewMode('dashboard')}
+					className="p-2.5 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 transition-all relative group flex items-center justify-center"
+					title="Global Metrics Dashboard"
+				>
+					<BarChart3 className="w-4 h-4" />
+					<div className="absolute left-full ml-3 px-1.5 py-0.5 bg-black/40 backdrop-blur-md text-[10px] text-white/90 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+						Analytics Dashboard
+					</div>
+				</button>
 			</div>
 
 			{/* Slide-out Popover System */}

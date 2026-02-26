@@ -22,6 +22,7 @@ class NodeType(str, Enum):
     STORAGE = "storage" # Object storage, S3 etc
     DLQ = "dlq" # Dead Letter Queue
     SPLITTER = "splitter" # Traffic Splitter / Canary
+    EXTERNAL = "external" # Third-party API (Stripe, Auth0, etc)
 
 class ResilienceConfig(BaseModel):
     circuit_breaker_enabled: bool = False
@@ -67,6 +68,13 @@ class SplitterConfig(BaseModel):
     adaptive_routing: bool = False # If true, shifts traffic away from unhealthy targets
     weights: Dict[str, float] = Field(default_factory=dict) # target_id -> weight
 
+class ExternalServiceConfig(BaseModel):
+    provider: str = "Stripe" # Stripe, AWS S3, Auth0, etc
+    availability_sla: float = Field(default=99.9, ge=0.0, le=100.0)
+    avg_latency_ms: float = Field(default=100.0, ge=0.0)
+    failure_pattern: str = "random" # "random", "spiky", "maintenance"
+    error_rate_pct: float = Field(default=0.1, ge=0.0, le=100.0)
+
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
@@ -86,6 +94,7 @@ class SimNode(BaseModel):
     database_config: Optional[DatabaseConfig] = None
     storage_config: Optional[StorageConfig] = None
     splitter_config: Optional[SplitterConfig] = None
+    external_config: Optional[ExternalServiceConfig] = None
     protocol_whitelist: Optional[List[str]] = None
 
 class SimEdge(BaseModel):

@@ -5,6 +5,7 @@ import Canvas from '../components/Canvas/Canvas';
 import PropertiesPanel from '../components/Sidebar/PropertiesPanel';
 import HistoryPanel from '../components/Sidebar/HistoryPanel';
 import FloatingToolbar from '../components/Toolbar/FloatingToolbar';
+import HistoricalDashboard from '../components/Dashboard/HistoricalDashboard';
 import { PanelRightClose, PanelRight, Settings2, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useDesignStore } from '../store/useDesignStore';
@@ -18,6 +19,7 @@ export default function CanvasPage() {
 
 	const { loadDesign, currentDesign, isLoading } = useDesignStore();
 	const { setNodes, setEdges } = useStore();
+	const viewMode = useStore(state => state.simulation.viewMode);
 
 	const designId = searchParams.get('id');
 
@@ -59,7 +61,11 @@ export default function CanvasPage() {
 			<main className="flex-1 relative min-w-0 h-full">
 				<ReactFlowProvider>
 					<FloatingToolbar />
-					<Canvas />
+					{viewMode === 'dashboard' ? (
+						<HistoricalDashboard />
+					) : (
+						<Canvas />
+					)}
 				</ReactFlowProvider>
 			</main>
 
@@ -116,4 +122,3 @@ export default function CanvasPage() {
 		</div>
 	);
 }
-

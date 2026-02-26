@@ -14,7 +14,7 @@ import { DiMsqlServer } from 'react-icons/di';
 import {
 	Database, ArrowRight, Minus, Activity, LayoutTemplate, Network,
 	Shield, LayoutDashboard, Users, PlaySquare, MessageSquare, Bell, UserCheck, HardDrive, FileText, Webhook, Repeat, Cuboid,
-	Laptop, Smartphone, Settings
+	Laptop, Smartphone, Settings, ExternalLink
 } from 'lucide-react';
 
 export const COMPONENT_CATEGORIES = [
@@ -127,6 +127,16 @@ export const COMPONENT_CATEGORIES = [
 			{ type: 'Dead Letter Queue', icon: Bell, color: '#ef4444' },
 			{ type: 'Traffic Splitter', icon: Repeat, color: '#3b82f6' },
 			{ type: 'Canary Gate', icon: UserCheck, color: '#10b981' },
+		]
+	},
+	{
+		name: 'External Providers',
+		items: [
+			{ type: 'Third-Party API', icon: ExternalLink, color: '#F59E0B' },
+			{ type: 'Stripe', icon: Activity, color: '#635BFF' },
+			{ type: 'Auth0', icon: Shield, color: '#EB5424' },
+			{ type: 'AWS S3', icon: HardDrive, color: '#FF9900' },
+			{ type: 'Cloudflare Workers', icon: SiCloudflare, color: '#F38020' },
 		]
 	},
 	{
