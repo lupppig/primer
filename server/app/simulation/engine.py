@@ -1,5 +1,35 @@
 from typing import Dict, List, Optional
-from app.simulation.schemas import SimGraph, NodeMetrics, GraphMetrics, SimulationTickResult, LoadProfile
+from app.simulation.schemas import SimGraph, NodeMetrics, GraphMetrics, SimulationTickResult, LoadProfile, Region
+
+# Network Latency in ms between regions
+# Note: This is an initial set of regions and can be expanded as needed for more granular global modeling.
+LATENCY_MATRIX = {
+    Region.US_EAST: {
+        Region.US_EAST: 0.0,
+        Region.US_WEST: 65.0,
+        Region.EU_CENTRAL: 90.0,
+        Region.AP_SOUTHEAST: 240.0
+    },
+    Region.US_WEST: {
+        Region.US_EAST: 65.0,
+        Region.US_WEST: 0.0,
+        Region.EU_CENTRAL: 150.0,
+        Region.AP_SOUTHEAST: 180.0
+    },
+    Region.EU_CENTRAL: {
+        Region.US_EAST: 90.0,
+        Region.US_WEST: 150.0,
+        Region.EU_CENTRAL: 0.0,
+        Region.AP_SOUTHEAST: 310.0
+    },
+    Region.AP_SOUTHEAST: {
+        Region.US_EAST: 240.0,
+        Region.US_WEST: 180.0,
+        Region.EU_CENTRAL: 310.0,
+        Region.AP_SOUTHEAST: 0.0
+    }
+}
+
 from app.simulation.models.base import ComponentActor
 from app.simulation.models.compute import ComputeActor
 from app.simulation.models.queue import QueueActor
@@ -132,7 +162,16 @@ class Simulator:
                 continue
 
             for target_id, traffic_pct in targets:
+                # Apply cross-region Network Latency penalty
+                source_region = actor.node.region
+                target_region = self.actors[target_id].node.region
+                
+                net_latency = LATENCY_MATRIX.get(source_region, {}).get(target_region, 0.0)
+                
                 child_incoming = metrics.effective_rps * traffic_pct
+                
+                # Accumulate weighted network latency for the child
+                self.actors[target_id].net_latency_accumulator += (net_latency * child_incoming)
                 self.actors[target_id].metrics.incoming_rps += child_incoming
                 
         gm = GraphMetrics(

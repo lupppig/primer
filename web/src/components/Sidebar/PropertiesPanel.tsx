@@ -14,6 +14,13 @@ import {
 	ResponsiveContainer
 } from 'recharts';
 
+const REGIONS = [
+	{ id: 'us-east-1', name: 'US East (N. Virginia)', flag: '🇺🇸' },
+	{ id: 'us-west-2', name: 'US West (Oregon)', flag: '🇺🇸' },
+	{ id: 'eu-central-1', name: 'Europe (Frankfurt)', flag: '🇩🇪' },
+	{ id: 'ap-southeast-1', name: 'Asia Pacific (Singapore)', flag: '🇸🇬' },
+];
+
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
 	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'metrics'>('config');
@@ -642,6 +649,7 @@ export default function PropertiesPanel() {
 
 		// Defaults for Tech Nodes (Config Tab)
 		const capacity = selectedNode?.data?.capacity_rps ?? 1000;
+		const regionId = selectedNode?.data?.region ?? 'us-east-1';
 		const replicas = selectedNode?.data?.replicas ?? 1;
 		const latency = selectedNode?.data?.base_latency_ms ?? 10;
 		const queueSize = selectedNode?.data?.queue_size ?? 5000;
@@ -662,6 +670,24 @@ export default function PropertiesPanel() {
 						onChange={(e) => updateNodeData('label', e.target.value)}
 						className="bg-[#0f1115] px-2"
 					/>
+				</div>
+
+				<div className="space-y-1.5 border-b border-[var(--color-border)] pb-4 mb-2">
+					<label className="text-sm font-medium text-white flex justify-between">
+						Region
+						<span className="text-[var(--color-text-muted)] text-[10px] font-normal">Physical Location</span>
+					</label>
+					<select
+						value={regionId}
+						onChange={(e) => updateNodeData('region', e.target.value)}
+						className="w-full bg-[#0f1115] border border-[var(--color-border)]/50 rounded-md px-2 h-9 text-[11px] text-white focus:outline-none focus:border-[#3caff6] transition-colors"
+					>
+						{REGIONS.map(r => (
+							<option key={r.id} value={r.id}>
+								{r.flag} {r.name}
+							</option>
+						))}
+					</select>
 				</div>
 
 				<div className="space-y-1.5">

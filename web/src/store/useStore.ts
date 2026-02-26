@@ -209,7 +209,8 @@ export const useStore = create<AppState>((set, get) => ({
 					cost_config: n.data?.cost_config ?? null,
 					mesh_config: n.data?.mesh_config ?? null,
 					cache_config: n.data?.cache_config ?? null,
-					database_config: n.data?.database_config ?? null
+					database_config: n.data?.database_config ?? null,
+					region: n.data?.region ?? 'us-east-1'
 				};
 			});
 			const simEdges = edges
@@ -300,7 +301,8 @@ export const useStore = create<AppState>((set, get) => ({
 					cost_config: n.data?.cost_config ?? null,
 					mesh_config: n.data?.mesh_config ?? null,
 					cache_config: n.data?.cache_config ?? null,
-					database_config: n.data?.database_config ?? null
+					database_config: n.data?.database_config ?? null,
+					region: n.data?.region ?? 'us-east-1'
 				};
 			});
 

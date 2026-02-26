@@ -60,5 +60,12 @@ class QueueActor(ComponentActor):
 
         # Update Service Mesh
         self._update_mesh_logic()
+        
+        # 4. Final Geodistribution Latency Application
+        if self.metrics.incoming_rps > 0:
+            avg_net_latency = self.net_latency_accumulator / self.metrics.incoming_rps
+            self.metrics.network_latency = avg_net_latency
+            if self.metrics.latency != 9999.9:
+                self.metrics.latency += avg_net_latency
 
         return self.metrics

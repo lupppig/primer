@@ -1,5 +1,12 @@
+from enum import Enum
 from typing import List, Dict, Tuple, Optional
 from pydantic import BaseModel, Field
+
+class Region(str, Enum):
+    US_EAST = "us-east-1"
+    US_WEST = "us-west-2"
+    EU_CENTRAL = "eu-central-1"
+    AP_SOUTHEAST = "ap-southeast-1"
 
 class ResilienceConfig(BaseModel):
     circuit_breaker_enabled: bool = False
@@ -36,6 +43,7 @@ class DatabaseConfig(BaseModel):
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
+    region: Region = Region.US_EAST # Physical location
     capacity_rps: float = Field(default=1000.0, ge=0)
     base_latency_ms: float = Field(default=50.0, ge=0)
     rate_limit_rps: Optional[float] = None
@@ -92,6 +100,7 @@ class NodeMetrics(BaseModel):
     retry_rps: float = 0.0
     cache_hit_rate: float = 0.0
     read_latency: float = 0.0
+    network_latency: float = 0.0
 
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0

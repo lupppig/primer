@@ -18,11 +18,16 @@ class ComponentActor(ABC):
         self.scaling_status = "idle" # "idle", "scaling_up", "scaling_down"
         self.ticks_since_last_scale = 0
         
+        # Geodistribution state
+        self.net_latency_accumulator = 0.0
+        
     def reset_tick_metrics(self):
         self.metrics.incoming_rps = 0.0
         self.metrics.effective_rps = 0.0
         self.metrics.utilization = 0.0
         self.metrics.latency = 0.0
+        self.metrics.network_latency = 0.0
+        self.net_latency_accumulator = 0.0
         self.metrics.bottleneck = False
         self.metrics.dropped_requests = 0
         self.metrics.status = "healthy"
