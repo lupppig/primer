@@ -28,6 +28,7 @@ class ComponentActor(ABC):
         self.metrics.status = "healthy"
         self.metrics.scaling_status = "idle"
         self.metrics.tick_cost = 0.0
+        self.metrics.retry_rps = 0.0
         
     def _update_circuit_breaker(self, has_failures: bool = False):
         config = self.node.resilience_config
@@ -139,6 +140,46 @@ class ComponentActor(ABC):
         var_cost_tick = (self.metrics.effective_rps * config.cost_per_million_requests) / 1000000
         
         self.metrics.tick_cost = base_cost_tick + var_cost_tick
+
+    def _update_mesh_logic(self):
+        config = self.node.mesh_config
+        if not config:
+            self.metrics.retry_rps = 0.0
+            return
+
+        # 1. Timeout Logic: Drop requests if latency exceeds timeout
+        if config.timeout_ms > 0 and self.metrics.latency > config.timeout_ms:
+            # All effective RPS are now failures due to timeout
+            timed_out_rps = self.metrics.effective_rps
+            self.metrics.dropped_requests += int(timed_out_rps)
+            self.metrics.effective_rps = 0.0
+            self.metrics.latency = config.timeout_ms # Cap latency at timeout for display
+            self.metrics.status = "degraded"
+            self.metrics.failure_reason = "Request Timeout"
+
+        # 2. Retry Logic: Amplify failed requests
+        if config.retries > 0 and self.metrics.dropped_requests > 0:
+            # We retry the failed requests
+            retry_count = min(config.retries, 5) # Safety cap
+            self.metrics.retry_rps = self.metrics.dropped_requests * retry_count
+            
+            # Application: Retries add load and latency
+            # We add backoff penalty to current latency
+            self.metrics.latency += (retry_count * config.retry_backoff_ms)
+            
+            # Recalculate utilization with "retry load"
+            total_capacity = self.node.capacity_rps * self.node.replicas
+            if total_capacity > 0:
+                augmented_load = self.metrics.incoming_rps + self.metrics.retry_rps
+                self.metrics.utilization = min(1.0, augmented_load / total_capacity)
+                
+                # If we have retries, some might succeed?
+                # For simplicity in this tick-based engine, we treat retries as "load amplification"
+                # that makes bottlenecks worse.
+                if self.metrics.utilization >= 1.0:
+                    self.metrics.bottleneck = True
+                    self.metrics.status = "degraded"
+                    self.metrics.failure_reason = "Retry Storm"
         
     @abstractmethod
     def process_tick(self) -> NodeMetrics:

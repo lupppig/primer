@@ -206,7 +206,10 @@ export const useStore = create<AppState>((set, get) => ({
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
 					resilience_config: n.data?.resilience_config ?? null,
 					scaling_config: n.data?.scaling_config ?? null,
-					cost_config: n.data?.cost_config ?? null
+					cost_config: n.data?.cost_config ?? null,
+					mesh_config: n.data?.mesh_config ?? null,
+					cache_config: n.data?.cache_config ?? null,
+					database_config: n.data?.database_config ?? null
 				};
 			});
 			const simEdges = edges
@@ -294,7 +297,10 @@ export const useStore = create<AppState>((set, get) => ({
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
 					resilience_config: n.data?.resilience_config ?? null,
 					scaling_config: n.data?.scaling_config ?? null,
-					cost_config: n.data?.cost_config ?? null
+					cost_config: n.data?.cost_config ?? null,
+					mesh_config: n.data?.mesh_config ?? null,
+					cache_config: n.data?.cache_config ?? null,
+					database_config: n.data?.database_config ?? null
 				};
 			});
 
@@ -453,7 +459,10 @@ export const useStore = create<AppState>((set, get) => ({
 					rate_limit_rps: n.data?.rate_limit_rps ?? null,
 					resilience_config: n.data?.resilience_config ?? null,
 					scaling_config: n.data?.scaling_config ?? null,
-					cost_config: n.data?.cost_config ?? null
+					cost_config: n.data?.cost_config ?? null,
+					mesh_config: n.data?.mesh_config ?? null,
+					cache_config: n.data?.cache_config ?? null,
+					database_config: n.data?.database_config ?? null
 				};
 			});
 			const simEdges = edges

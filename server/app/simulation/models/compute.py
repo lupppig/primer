@@ -16,17 +16,37 @@ class ComputeActor(ComponentActor):
             self._update_circuit_breaker(has_failures=True)
             return self.metrics
 
+        # 1. Specialized Capacity & Load Calculation
+        load_to_process = self.metrics.incoming_rps
         total_capacity = self.node.capacity_rps * self.node.replicas
         
+        # Handle Cache specialization
+        if self.node.cache_config:
+            c_config = self.node.cache_config
+            hits = self.metrics.incoming_rps * c_config.hit_rate
+            misses = self.metrics.incoming_rps * (1.0 - c_config.hit_rate)
+            # Only misses put real load on the cache "engine"
+            load_to_process = misses
+            self.metrics.cache_hit_rate = c_config.hit_rate
+        
+        # Handle Database specialization
+        if self.node.database_config:
+            d_config = self.node.database_config
+            # Read replicas add to capacity, but writes (estimated at 20%) only go to primary
+            read_cap = (self.node.capacity_rps * 0.8) * d_config.read_replicas
+            total_capacity += read_cap
+            self.metrics.read_latency = self.node.base_latency_ms + d_config.replication_lag_ms
+
+        # 2. Standard Processing Logic with modified load/capacity
         # Calculate component utilization ratio
-        self.metrics.utilization = (self.metrics.incoming_rps / total_capacity) if total_capacity > 0 else (1.0 if self.metrics.incoming_rps > 0 else 0.0)
+        self.metrics.utilization = (load_to_process / total_capacity) if total_capacity > 0 else (1.0 if load_to_process > 0 else 0.0)
         
         # Bound effective RPS by physical capacity
         self.metrics.effective_rps = min(self.metrics.incoming_rps, total_capacity)
         
-        # Calculate dropped requests if incoming exceeds capacity
-        if self.metrics.incoming_rps > total_capacity:
-            self.metrics.dropped_requests = int(self.metrics.incoming_rps - total_capacity)
+        # Calculate dropped requests if load exceeds capacity
+        if load_to_process > total_capacity:
+            self.metrics.dropped_requests = int(load_to_process - total_capacity)
 
         # Apply strict rate limits if explicitly configured in node UI
         if self.node.rate_limit_rps is not None:
@@ -34,9 +54,17 @@ class ComputeActor(ComponentActor):
                 self.metrics.dropped_requests += int(self.metrics.effective_rps - self.node.rate_limit_rps)
                 self.metrics.effective_rps = self.node.rate_limit_rps
 
-        # Mathematical latency curve
+        # 3. Latency Calculation
         if self.metrics.utilization <= 1.0:
-            self.metrics.latency = self.node.base_latency_ms / max(1.0 - self.metrics.utilization, 0.001)
+            calc_latency = self.node.base_latency_ms / max(1.0 - self.metrics.utilization, 0.001)
+            
+            if self.node.cache_config:
+                # Weighted average of hit latency and miss latency
+                c_config = self.node.cache_config
+                self.metrics.latency = (c_config.hit_rate * c_config.hit_latency_ms) + ((1.0 - c_config.hit_rate) * calc_latency)
+            else:
+                self.metrics.latency = calc_latency
+                
             self.metrics.bottleneck = False
             self.metrics.failure_reason = None
         else:
@@ -53,5 +81,8 @@ class ComputeActor(ComponentActor):
         
         #  Update Costs
         self._update_costs()
+        
+        #  Update Service Mesh Service
+        self._update_mesh_logic()
         
         return self.metrics

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
-import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown, DollarSign, Coins } from 'lucide-react';
+import { Plus, Minus, BarChart3, Settings2, ShieldAlert, Zap, ChevronUp, ChevronDown, DollarSign, Coins, Layers, Database } from 'lucide-react';
 import type { Node, Edge } from 'reactflow';
 import {
 	LineChart,
@@ -16,7 +16,7 @@ import {
 
 export default function PropertiesPanel() {
 	const { nodes, edges, setNodes, simulation } = useStore();
-	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'metrics'>('config');
+	const [activeTab, setActiveTab] = useState<'config' | 'resilience' | 'scaling' | 'economy' | 'mesh' | 'cache' | 'database' | 'metrics'>('config');
 
 	// Find the currently selected node or edge
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
@@ -369,6 +369,197 @@ export default function PropertiesPanel() {
 			);
 		}
 
+		if (activeTab === 'mesh') {
+			const meshConfig = selectedNode?.data?.mesh_config || {
+				retries: 0,
+				timeout_ms: 0,
+				retry_backoff_ms: 10
+			};
+
+			const updateMeshConfig = (field: string, value: any) => {
+				updateNodeData('mesh_config', { ...meshConfig, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-purple-400">
+							<Layers size={14} />
+							<span className="text-[12px] font-medium text-white block">Service Mesh Configuration</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Advanced retry policies and request timeouts.</p>
+					</div>
+
+					<div className="space-y-5">
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Max Retries
+								<span className="text-white font-bold">{meshConfig.retries === 0 ? 'Disabled' : meshConfig.retries}</span>
+							</label>
+							<div className="flex items-center gap-1">
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateMeshConfig('retries', Math.max(0, meshConfig.retries - 1))}>
+									<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+								<Input type="number" value={meshConfig.retries} onChange={(e) => updateMeshConfig('retries', parseInt(e.target.value) || 0)} className="bg-[#0f1115] text-center px-1" min={0} max={10} />
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateMeshConfig('retries', Math.min(10, meshConfig.retries + 1))}>
+									<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+							</div>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Automatic re-transmission of failed requests.</p>
+						</div>
+
+						<div className="space-y-1.5 pt-4 border-t border-[var(--color-border)]/30">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Request Timeout
+								<span className="text-white font-bold">{meshConfig.timeout_ms === 0 ? 'Unlimited' : `${meshConfig.timeout_ms}ms`}</span>
+							</label>
+							<Input
+								type="number"
+								value={meshConfig.timeout_ms}
+								onChange={(e) => updateMeshConfig('timeout_ms', parseFloat(e.target.value) || 0)}
+								className="bg-[#0f1115] px-2 h-8 text-[11px]"
+								placeholder="e.g. 500"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Cancel requests taking longer than this.</p>
+						</div>
+
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Retry Backoff
+								<span className="text-white font-bold">{meshConfig.retry_backoff_ms}ms</span>
+							</label>
+							<div className="flex items-center gap-1">
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateMeshConfig('retry_backoff_ms', Math.max(0, meshConfig.retry_backoff_ms - 5))}>
+									<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+								<Input type="number" value={meshConfig.retry_backoff_ms} onChange={(e) => updateMeshConfig('retry_backoff_ms', parseInt(e.target.value) || 0)} className="bg-[#0f1115] text-center px-1" min={0} />
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateMeshConfig('retry_backoff_ms', meshConfig.retry_backoff_ms + 5)}>
+									<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+							</div>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Latency penalty applied per retry attempt.</p>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
+		if (activeTab === 'cache') {
+			const cacheConfig = selectedNode?.data?.cache_config || {
+				hit_rate: 0.8,
+				hit_latency_ms: 2.0
+			};
+
+			const updateCacheConfig = (field: string, value: any) => {
+				updateNodeData('cache_config', { ...cacheConfig, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-orange-400">
+							<Zap size={14} />
+							<span className="text-[12px] font-medium text-white block">Cache Configuration</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Model hit rates and high-speed retrieval performance.</p>
+					</div>
+
+					<div className="space-y-5">
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Hit Rate
+								<span className="text-white font-bold">{(cacheConfig.hit_rate * 100).toFixed(0)}%</span>
+							</label>
+							<input
+								type="range"
+								min="0"
+								max="1"
+								step="0.05"
+								value={cacheConfig.hit_rate}
+								onChange={(e) => updateCacheConfig('hit_rate', parseFloat(e.target.value))}
+								className="w-full h-1.5 bg-[#1a1c23] rounded-lg appearance-none cursor-pointer accent-orange-500"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Percentage of requests served from memory without backend load.</p>
+						</div>
+
+						<div className="space-y-1.5 pt-4 border-t border-[var(--color-border)]/30">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Hit Latency
+								<span className="text-white font-bold">{cacheConfig.hit_latency_ms}ms</span>
+							</label>
+							<div className="flex items-center gap-1">
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateCacheConfig('hit_latency_ms', Math.max(0, cacheConfig.hit_latency_ms - 0.5))}>
+									<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+								<Input type="number" value={cacheConfig.hit_latency_ms} onChange={(e) => updateCacheConfig('hit_latency_ms', parseFloat(e.target.value) || 0)} className="bg-[#0f1115] text-center px-1" step={0.1} />
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateCacheConfig('hit_latency_ms', cacheConfig.hit_latency_ms + 0.5)}>
+									<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+							</div>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Static latency penalty for successful cache hits.</p>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
+		if (activeTab === 'database') {
+			const dbConfig = selectedNode?.data?.database_config || {
+				read_replicas: 0,
+				write_capacity_rps: 500.0,
+				replication_lag_ms: 100.0
+			};
+
+			const updateDbConfig = (field: string, value: any) => {
+				updateNodeData('database_config', { ...dbConfig, [field]: value });
+			};
+
+			return (
+				<div className="space-y-6">
+					<div className="bg-[#1a1c23]/50 p-3 rounded-xl border border-[var(--color-border)]/50 text-[11px]">
+						<div className="flex items-center gap-2 mb-2 text-emerald-400">
+							<Database size={14} />
+							<span className="text-[12px] font-medium text-white block">Database Modeling</span>
+						</div>
+						<p className="text-[var(--color-text-muted)] tracking-tight">Scale read capacity and model replication eventual consistency.</p>
+					</div>
+
+					<div className="space-y-5">
+						<div className="space-y-1.5">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Read Replicas
+								<span className="text-white font-bold">{dbConfig.read_replicas}</span>
+							</label>
+							<div className="flex items-center gap-1">
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateDbConfig('read_replicas', Math.max(0, dbConfig.read_replicas - 1))}>
+									<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+								<Input type="number" value={dbConfig.read_replicas} onChange={(e) => updateDbConfig('read_replicas', parseInt(e.target.value) || 0)} className="bg-[#0f1115] text-center px-1" min={0} />
+								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateDbConfig('read_replicas', dbConfig.read_replicas + 1)}>
+									<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
+								</Button>
+							</div>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Scaling horizontally for read-only operations.</p>
+						</div>
+
+						<div className="space-y-1.5 pt-4 border-t border-[var(--color-border)]/30">
+							<label className="text-[10px] font-medium text-[var(--color-text-muted)] flex justify-between uppercase tracking-wider">
+								Replication Lag
+								<span className="text-white font-bold">{dbConfig.replication_lag_ms}ms</span>
+							</label>
+							<Input
+								type="number"
+								value={dbConfig.replication_lag_ms}
+								onChange={(e) => updateDbConfig('replication_lag_ms', parseFloat(e.target.value) || 0)}
+								className="bg-[#0f1115] px-2 h-8 text-[11px]"
+							/>
+							<p className="text-[10px] text-[var(--color-text-muted)]">Simulated delay for data to propagate to replicas.</p>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
 		if (activeTab === 'metrics') {
 			const nodeHistory = simulation.history[selectedNode?.id || ''] || [];
 			return (
@@ -399,6 +590,14 @@ export default function PropertiesPanel() {
 										stroke="#555"
 										strokeWidth={1}
 										strokeDasharray="4 4"
+										dot={false}
+										isAnimationActive={false}
+									/>
+									<Line
+										type="monotone"
+										dataKey="retry_rps"
+										stroke="#a855f7"
+										strokeWidth={2}
 										dot={false}
 										isAnimationActive={false}
 									/>
@@ -588,6 +787,31 @@ export default function PropertiesPanel() {
 						>
 							<DollarSign className="w-3.5 h-3.5" />
 						</button>
+						<button
+							onClick={() => setActiveTab('mesh')}
+							className={`p-1.5 rounded-md transition-all ${activeTab === 'mesh' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+							title="Service Mesh Policy"
+						>
+							<Layers className="w-3.5 h-3.5" />
+						</button>
+						{(['redis', 'memcached', 'cache', 'valkey'].some(c => displayLabel.toLowerCase().includes(c))) && (
+							<button
+								onClick={() => setActiveTab('cache')}
+								className={`p-1.5 rounded-md transition-all ${activeTab === 'cache' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+								title="Cache Settings"
+							>
+								<Zap className="w-3.5 h-3.5" />
+							</button>
+						)}
+						{(['postgres', 'mysql', 'mongo', 'dynamodb', 'elasticsearch', 'db', 'mariadb', 'sql'].some(db => displayLabel.toLowerCase().includes(db))) && (
+							<button
+								onClick={() => setActiveTab('database')}
+								className={`p-1.5 rounded-md transition-all ${activeTab === 'database' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+								title="Database Architecture"
+							>
+								<Database className="w-3.5 h-3.5" />
+							</button>
+						)}
 						<button
 							onClick={() => setActiveTab('metrics')}
 							className={`p-1.5 rounded-md transition-all ${activeTab === 'metrics' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}

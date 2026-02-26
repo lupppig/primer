@@ -7,7 +7,6 @@ class QueueActor(ComponentActor):
     across discrete simulation ticks. Useful for event queues, Kafka, SQS, etc.
     """
     def process_tick(self) -> NodeMetrics:
-        # 1. Check Circuit Breaker State
         if self.cb_state == "OPEN":
             # If the circuit is open, we drop incoming traffic, but we can still process what's in the queue
             self.metrics.dropped_requests = int(self.metrics.incoming_rps)
@@ -58,5 +57,8 @@ class QueueActor(ComponentActor):
 
         # Update Costs
         self._update_costs()
+
+        # Update Service Mesh
+        self._update_mesh_logic()
 
         return self.metrics

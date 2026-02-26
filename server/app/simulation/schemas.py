@@ -19,6 +19,20 @@ class CostConfig(BaseModel):
     monthly_base_cost_per_replica: float = Field(default=0.0, ge=0)
     cost_per_million_requests: float = Field(default=0.0, ge=0)
 
+class MeshConfig(BaseModel):
+    retries: int = Field(default=0, ge=0, le=10)
+    timeout_ms: float = Field(default=0.0, ge=0.0) # 0 means disabled
+    retry_backoff_ms: float = Field(default=10.0, ge=0)
+
+class CacheConfig(BaseModel):
+    hit_rate: float = Field(default=0.8, ge=0.0, le=1.0)
+    hit_latency_ms: float = Field(default=2.0, ge=0.0)
+
+class DatabaseConfig(BaseModel):
+    read_replicas: int = Field(default=0, ge=0)
+    write_capacity_rps: float = Field(default=500.0, ge=0)
+    replication_lag_ms: float = Field(default=100.0, ge=0)
+
 class SimNode(BaseModel):
     id: str
     type: str # "api", "db", "cache", "queue", "k8s", etc.
@@ -32,6 +46,9 @@ class SimNode(BaseModel):
     resilience_config: Optional[ResilienceConfig] = None
     scaling_config: Optional[ScalingConfig] = None
     cost_config: Optional[CostConfig] = None
+    mesh_config: Optional[MeshConfig] = None
+    cache_config: Optional[CacheConfig] = None
+    database_config: Optional[DatabaseConfig] = None
 
 class SimEdge(BaseModel):
     id: str
@@ -72,6 +89,9 @@ class NodeMetrics(BaseModel):
     status: str = "healthy" # "healthy", "degraded", "tripped"
     scaling_status: str = "idle" # "idle", "scaling_up", "scaling_down"
     tick_cost: float = 0.0
+    retry_rps: float = 0.0
+    cache_hit_rate: float = 0.0
+    read_latency: float = 0.0
 
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0
