@@ -130,11 +130,11 @@ export default function HistoryPanel() {
 	return (
 		<div className="flex flex-col h-full bg-[#090a0f]">
 			<div className="p-4 space-y-3 overflow-y-auto">
-				{runs.map((run) => (
+				{runs.map((run: any) => (
 					<button
 						key={run.id}
 						onClick={() => handleSelectRun(run)}
-						className={`w-full text-left p-3 rounded-xl border transition-all group ${selectedRun?.id === run.id
+						className={`w-full text-left p-3 rounded-xl border transition-all group ${(selectedRun as any)?.id === run.id
 							? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)] shadow-[0_0_15px_rgba(60,175,246,0.1)]'
 							: 'bg-[#0f111a] border-[var(--color-border)]/50 hover:border-[var(--color-primary)]/50 hover:bg-[#161821]'
 							}`}
@@ -168,7 +168,7 @@ export default function HistoryPanel() {
 								<Calendar className="w-3 h-3" />
 								{format(new Date(run.start_time), 'MMM d, HH:mm')}
 							</div>
-							<ChevronRight className={`w-3 h-3 transition-transform ${selectedRun?.id === run.id ? 'translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+							<ChevronRight className={`w-3 h-3 transition-transform ${(selectedRun as any)?.id === run.id ? 'translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
 						</div>
 					</button>
 				))}

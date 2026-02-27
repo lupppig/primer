@@ -9,10 +9,13 @@ from sqlalchemy import select
 from app.core.nats import get_nats_js
 from app.core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 
-from app.simulation.schemas import SimulationInput
+from datetime import datetime, timedelta
+from app.simulation.schemas import SimulationInput, ExportRequest, ExportResponse, ExportStatus
 from app.simulation.engine import Simulator
-from app.simulation.persistence import SimulationRun, SimulationTick
+from app.simulation.persistence import SimulationRun, SimulationTick, SimulationExport
+from app.core.storage import storage_service
 from app.core.exceptions import ValidationException
 import logging
 
@@ -61,6 +64,87 @@ async def run_simulation_sync(sim_input: SimulationInput):
     except ValueError as e:
         raise ValidationException(str(e))
 
+@router.post("/export", response_model=ExportResponse)
+async def create_export_request(
+    request: ExportRequest, 
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Creates an export record and queues the job via NATS.
+    """
+    # Create DB record
+    expires_at = datetime.utcnow() + timedelta(hours=24)
+    export_record = SimulationExport(
+        design_id=request.design_id,
+        format=request.format,
+        status=ExportStatus.QUEUED,
+        expires_at=expires_at
+    )
+    db.add(export_record)
+    await db.commit()
+    await db.refresh(export_record)
+
+    # Queue via NATS
+    js = await get_nats_js()
+    payload = {
+        "export_id": str(export_record.id),
+        "design_id": str(request.design_id),
+        "format": request.format,
+        "options": request.options
+    }
+    await js.publish("simulation.export.requests", json.dumps(payload).encode())
+
+    return export_record
+
+from fastapi.responses import Response
+
+@router.get("/export/{export_id}/download")
+async def download_export(
+    export_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Securely streams the export file without exposing storage credentials.
+    """
+    export_record = await db.get(SimulationExport, export_id)
+    if not export_record or not export_record.file_url:
+        raise ValidationException("Export not found or not ready")
+    
+    try:
+        obj = await storage_service.get_object(export_record.file_url)
+        
+        filename = f"primer_export_{export_id}.{export_record.format.lower()}"
+        return Response(
+            content=obj["body"],
+            media_type=obj["content_type"],
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to stream export {export_id}: {e}")
+        raise ValidationException("Could not retrieve file from storage.")
+
+@router.get("/export/{export_id}", response_model=ExportResponse)
+async def get_export_status(
+    export_id: uuid.UUID, 
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns the status and a clean download link (if completed).
+    """
+    export_record = await db.get(SimulationExport, export_id)
+    if not export_record:
+        raise ValidationException("Export request not found")
+
+    # Return a clean proxy URL instead of a signed MinIO URL in the RESPONSE only
+    response_data = ExportResponse.model_validate(export_record)
+    if export_record.status == ExportStatus.COMPLETED and export_record.file_url:
+        # Construct the proxy URL for the response without modifying the DB record
+        response_data.file_url = f"{settings.API_V1_STR}/simulation/export/{export_id}/download"
+
+    return response_data
+
 @router.websocket("/ws")
 async def simulation_websocket(websocket: WebSocket):
     """
@@ -75,12 +159,15 @@ async def simulation_websocket(websocket: WebSocket):
         
         try:
             payload = json.loads(data)
+            logger.info(f"Received simulation payload for design: {payload.get('design_id')}, speed: {payload.get('sim_speed')}")
             sim_input = SimulationInput(**payload)
         except (json.JSONDecodeError, ValidationError) as e:
+            logger.error(f"WebSocket payload validation failed: {str(e)}")
             await websocket.send_json({"error": "Invalid initial configuration payload", "details": str(e)})
             await websocket.close(code=1003)
             return
 
+        sim_lock = asyncio.Lock()
         client_disconnected = asyncio.Event()
 
         async def listen_for_updates():
@@ -90,7 +177,9 @@ async def simulation_websocket(websocket: WebSocket):
                     new_data = await websocket.receive_text()
                     try:
                         new_payload = json.loads(new_data)
-                        sim_input = SimulationInput(**new_payload)
+                        new_input = SimulationInput(**new_payload)
+                        async with sim_lock:
+                            sim_input = new_input
                         logger.info("Simulation config updated via hot reload")
                     except (json.JSONDecodeError, ValidationError) as e:
                         logger.error(f"Failed to parse hot reload payload: {e}")
@@ -112,7 +201,9 @@ async def simulation_websocket(websocket: WebSocket):
         try:
             while not client_disconnected.is_set() and websocket.application_state == WebSocketState.CONNECTED:
                 try:
-                    payload = sim_input.model_dump()
+                    async with sim_lock:
+                        payload = sim_input.model_dump()
+                    
                     payload["current_tick"] = current_tick
                     
                     await js.publish(
@@ -125,7 +216,13 @@ async def simulation_websocket(websocket: WebSocket):
                         msg = await sub.next_msg(timeout=5.0)
                         
                         try:
-                            await websocket.send_text(msg.data.decode())
+                            res_data = json.loads(msg.data.decode())
+                            # Correlation ID check: Discard data from late previous ticks
+                            if res_data.get("time") != current_tick + 1:
+                                logger.warning(f"Discarding late NATS reply: got tick {res_data.get('time')}, expected {current_tick + 1}")
+                                continue
+                                
+                            await websocket.send_text(json.dumps(res_data))
                         except RuntimeError as e:
                             if "websocket" in str(e).lower() or "asgi" in str(e).lower():
                                 logger.info("WebSocket closed by client during send, ending simulation loop.")
@@ -135,7 +232,8 @@ async def simulation_websocket(websocket: WebSocket):
                             
                         current_tick += 1
                         
-                        interval = 1.0 / (sim_input.sim_speed or 1.0)
+                        async with sim_lock:
+                            interval = 1.0 / (sim_input.sim_speed or 1.0)
                         await asyncio.sleep(interval)
                         
                     except Exception as e:

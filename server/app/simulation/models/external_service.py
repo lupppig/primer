@@ -20,7 +20,7 @@ class ExternalServiceActor(ComponentActor):
             self.metrics.status = "healthy"
             return self.metrics
 
-        # 1. Failure Pattern Simulation
+        # Failure Pattern Simulation
         is_up = True
         
         # Simple non-deterministic SLA check per tick
@@ -41,7 +41,7 @@ class ExternalServiceActor(ComponentActor):
                     is_up = False
                     self.outage_ticks_remaining = random.randint(5, 15)
 
-        # 2. Results application
+        # Results application
         if not is_up:
             self.metrics.effective_rps = 0.0
             self.metrics.dropped_requests = int(self.metrics.incoming_rps)

@@ -34,3 +34,21 @@ class SimulationTick(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     run = relationship("SimulationRun", back_populates="ticks")
+
+class SimulationExport(Base):
+    __tablename__ = "simulation_exports"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuid, index=True)
+    design_id = Column(UUID(as_uuid=True), ForeignKey("designs.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    format = Column(String, nullable=False) # PNG, PDF, SVG, JPG, GIF
+    status = Column(String, default="queued") # queued, processing, completed, failed
+    
+    file_url = Column(String, nullable=True) # MinIO path
+    error_message = Column(String, nullable=True)
+    retry_count = Column(Integer, default=0)
+    
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    design = relationship("Design")

@@ -7,9 +7,11 @@ import {
 	Component,
 	MessageSquare,
 	PenTool,
-	BarChart3
+	BarChart3,
+	Download
 } from 'lucide-react';
 import FloatingPopover from './FloatingPopover';
+import ExportPopover from './ExportPopover';
 
 import type { ToolType } from './types';
 
@@ -22,7 +24,7 @@ export default function FloatingToolbar() {
 		setActiveTool(tool);
 
 		// Toggle popovers for categories that have them
-		if (tool === 'shapes' || tool === 'components') {
+		if (tool === 'shapes' || tool === 'components' || tool === 'download') {
 			setPopoverOpen(popoverOpen === tool ? null : tool);
 		} else {
 			setPopoverOpen(null);
@@ -36,6 +38,7 @@ export default function FloatingToolbar() {
 		{ id: 'components', icon: Component, label: 'Tech Components' },
 		{ id: 'draw', icon: PenTool, label: 'Draw' },
 		{ id: 'comment', icon: MessageSquare, label: 'Comment' },
+		{ id: 'download', icon: Download, label: 'Export Design' },
 	] as const;
 
 	return (
@@ -81,9 +84,15 @@ export default function FloatingToolbar() {
 			</div>
 
 			{/* Slide-out Popover System */}
-			{popoverOpen && (
+			{popoverOpen && popoverOpen !== 'download' && (
 				<FloatingPopover
 					type={popoverOpen}
+					onClose={() => setPopoverOpen(null)}
+				/>
+			)}
+
+			{popoverOpen === 'download' && (
+				<ExportPopover
 					onClose={() => setPopoverOpen(null)}
 				/>
 			)}

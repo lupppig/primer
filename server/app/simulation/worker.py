@@ -9,6 +9,7 @@ from app.core.nats import get_nats_js, nats_client
 from app.simulation.engine import Simulator
 from app.simulation.schemas import SimulationInput
 from app.simulation.persistence import SimulationRun, SimulationTick
+from sqlalchemy import update, func
 from app.core.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
@@ -83,16 +84,19 @@ async def start_simulation_worker():
                             )
                             db.add(tick)
                             
-                            run = await db.get(SimulationRun, run_id)
-                            if run:
-                                if result.graph_metrics.total_throughput > (run.total_rps_peak or 0):
-                                    run.total_rps_peak = result.graph_metrics.total_throughput
-                                
-                                if not run.avg_latency:
-                                    run.avg_latency = result.graph_metrics.max_latency
-                                else:
-                                    run.avg_latency = (run.avg_latency + result.graph_metrics.max_latency) / 2
-                            
+                            # Atomic update for run metrics to prevent race conditions
+                            stmt = (
+                                update(SimulationRun)
+                                .where(SimulationRun.id == run_id)
+                                .values(
+                                    total_rps_peak=func.greatest(SimulationRun.total_rps_peak, result.graph_metrics.total_throughput),
+                                    avg_latency=func.coalesce(
+                                        (SimulationRun.avg_latency + result.graph_metrics.max_latency) / 2,
+                                        result.graph_metrics.max_latency
+                                    )
+                                )
+                            )
+                            await db.execute(stmt)
                             await db.commit()
                     
                     await js.publish(reply_topic, result.model_dump_json().encode())

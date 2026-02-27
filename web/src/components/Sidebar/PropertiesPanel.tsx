@@ -345,11 +345,11 @@ export default function PropertiesPanel() {
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-1.5">
 								<label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Min Replicas</label>
-								<Input type="number" value={scalingConfig.min_replicas} onChange={(e) => updateScalingConfig('min_replicas', parseInt(e.target.value) || 1)} className="bg-[#0f1115] px-2 h-8 text-[11px]" />
+								<Input type="number" value={scalingConfig.min_replicas === 0 ? '' : scalingConfig.min_replicas} onChange={(e) => updateScalingConfig('min_replicas', e.target.value === '' ? 1 : (parseInt(e.target.value) || 1))} className="bg-[#0f1115] px-2 h-8 text-[11px]" />
 							</div>
 							<div className="space-y-1.5">
 								<label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Max Replicas</label>
-								<Input type="number" value={scalingConfig.max_replicas} onChange={(e) => updateScalingConfig('max_replicas', parseInt(e.target.value) || 1)} className="bg-[#0f1115] px-2 h-8 text-[11px]" />
+								<Input type="number" value={scalingConfig.max_replicas === 0 ? '' : scalingConfig.max_replicas} onChange={(e) => updateScalingConfig('max_replicas', e.target.value === '' ? 1 : (parseInt(e.target.value) || 1))} className="bg-[#0f1115] px-2 h-8 text-[11px]" />
 							</div>
 						</div>
 
@@ -611,7 +611,7 @@ export default function PropertiesPanel() {
 								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateDbConfig('read_replicas', Math.max(0, dbConfig.read_replicas - 1))}>
 									<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
 								</Button>
-								<Input type="number" value={dbConfig.read_replicas} onChange={(e) => updateDbConfig('read_replicas', parseInt(e.target.value) || 0)} className="bg-[#0f1115] text-center px-1" min={0} />
+								<Input type="number" value={dbConfig.read_replicas === 0 ? '' : dbConfig.read_replicas} onChange={(e) => updateDbConfig('read_replicas', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} className="bg-[#0f1115] text-center px-1" min={0} />
 								<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateDbConfig('read_replicas', dbConfig.read_replicas + 1)}>
 									<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
 								</Button>
@@ -626,8 +626,8 @@ export default function PropertiesPanel() {
 							</label>
 							<Input
 								type="number"
-								value={dbConfig.replication_lag_ms}
-								onChange={(e) => updateDbConfig('replication_lag_ms', parseFloat(e.target.value) || 0)}
+								value={dbConfig.replication_lag_ms === 0 ? '' : dbConfig.replication_lag_ms}
+								onChange={(e) => updateDbConfig('replication_lag_ms', e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0))}
 								className="bg-[#0f1115] px-2 h-8 text-[11px]"
 							/>
 							<p className="text-[10px] text-[var(--color-text-muted)]">Simulated delay for data to propagate to replicas.</p>
@@ -998,7 +998,7 @@ export default function PropertiesPanel() {
 						<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateNodeData('capacity_rps', Math.max(1, capacity - 100))}>
 							<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
 						</Button>
-						<Input type="number" value={capacity} onChange={(e) => updateNodeData('capacity_rps', parseInt(e.target.value) || 0)} className="bg-[#0f1115] text-center px-1" min={1} />
+						<Input type="number" value={capacity === 0 ? '' : capacity} onChange={(e) => updateNodeData('capacity_rps', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} className="bg-[#0f1115] text-center px-1" min={1} />
 						<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateNodeData('capacity_rps', capacity + 100)}>
 							<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
 						</Button>
@@ -1030,7 +1030,7 @@ export default function PropertiesPanel() {
 						<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateNodeData('replicas', Math.max(1, replicas - 1))}>
 							<Minus className="w-4 h-4 text-[var(--color-text-muted)]" />
 						</Button>
-						<Input type="number" value={replicas} onChange={(e) => updateNodeData('replicas', parseInt(e.target.value) || 1)} className="bg-[#0f1115] text-center px-1" min={1} />
+						<Input type="number" value={replicas === 0 ? '' : replicas} onChange={(e) => updateNodeData('replicas', e.target.value === '' ? 1 : (parseInt(e.target.value) || 1))} className="bg-[#0f1115] text-center px-1" min={1} />
 						<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#1a1c23] border border-transparent hover:border-[#333]" onClick={() => updateNodeData('replicas', replicas + 1)}>
 							<Plus className="w-4 h-4 text-[var(--color-text-muted)]" />
 						</Button>

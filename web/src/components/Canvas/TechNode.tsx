@@ -236,8 +236,8 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 							<input
 								type="number"
 								className="bg-transparent text-[9px] text-blue-400 font-mono w-8 outline-none"
-								value={data.replicas || 1}
-								onChange={(e) => updateNodeData(id, { replicas: parseInt(e.target.value) || 1 })}
+								value={data.replicas === 0 ? '' : (data.replicas || 1)}
+								onChange={(e) => updateNodeData(id, { replicas: e.target.value === '' ? 1 : (parseInt(e.target.value) || 1) })}
 							/>
 						</div>
 						<button onClick={() => duplicateNode(id)} className="p-1 hover:text-blue-400 transition-colors text-slate-400" title="Duplicate"><Copy size={11} /></button>

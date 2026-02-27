@@ -52,11 +52,11 @@ class DesignBase(BaseModel):
         
         node_ids = {n.id for n in nodes}
         
-        # 1. Duplicate IDs
+        # Duplicate IDs
         if len(node_ids) != len(nodes):
             raise ValidationException("Duplicate Node IDs detected in graph.")
             
-        # 2. Dangling Edges
+        # Dangling Edges
         for edge in edges:
             if edge.source not in node_ids or edge.target not in node_ids:
                 raise ValidationException(f"Edge {edge.id} references non-existent nodes.")

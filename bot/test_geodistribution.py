@@ -3,7 +3,7 @@ from app.simulation.engine import Simulator, LATENCY_MATRIX
 from app.simulation.schemas import SimGraph, SimNode, SimEdge, Region
 
 def test_cross_region_latency():
-    # 1. Setup two nodes in different regions
+    # Setup two nodes in different regions
     # Node A: US-East
     # Node B: EU-Central
     node_a = SimNode(id="node-a", type="api", region=Region.US_EAST, base_latency_ms=10.0)
@@ -31,7 +31,7 @@ def test_cross_region_latency():
     assert result.nodes["node-b"].latency == pytest.approx(11.11 + expected_net_latency, rel=1e-2)
 
 def test_intra_region_latency():
-    # 2. Setup nodes in same region
+    # Setup nodes in same region
     node_a = SimNode(id="node-a", type="api", region=Region.US_WEST, base_latency_ms=10.0)
     node_b = SimNode(id="node-b", type="api", region=Region.US_WEST, base_latency_ms=10.0)
     

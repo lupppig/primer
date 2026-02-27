@@ -3,7 +3,7 @@ from app.simulation.engine import Simulator
 from app.simulation.schemas import SimGraph, SimNode, SimEdge, NodeType, Region
 
 def test_traffic_splitter_distribution():
-    # 1. Setup Graph with Splitter
+    # Setup Graph with Splitter
     nodes = {
         "user": SimNode(id="user", type="api", capacity_rps=10000),
         "splitter": SimNode(id="splitter", type="splitter", capacity_rps=10000),
@@ -18,15 +18,15 @@ def test_traffic_splitter_distribution():
     graph = SimGraph(nodes=nodes, edges=edges)
     sim = Simulator("test-splitter")
 
-    # 2. Process Tick with 100 RPS
+    # Process Tick with 100 RPS
     result = sim.process_tick(graph, incoming_rps=100.0)
 
-    # 3. Verify Distribution
+    # Verify Distribution
     assert result.nodes["v1"].incoming_rps == 70.0
     assert result.nodes["v2"].incoming_rps == 30.0
 
 def test_dead_letter_routing():
-    # 1. Setup Graph: API -> (Success Edge) & (DLQ Edge)
+    # Setup Graph: API -> (Success Edge) & (DLQ Edge)
     # API has 50 RPS capacity, but receive 100 RPS
     nodes = {
         "api": SimNode(id="api", type="api", capacity_rps=50, replicas=1),
@@ -40,10 +40,10 @@ def test_dead_letter_routing():
     graph = SimGraph(nodes=nodes, edges=edges)
     sim = Simulator("test-dlq")
 
-    # 2. Process Tick with 100 RPS
+    # Process Tick with 100 RPS
     result = sim.process_tick(graph, incoming_rps=100.0)
 
-    # 3. Verify Dropped Requests go to DLQ
+    # Verify Dropped Requests go to DLQ
     # API processes 50, drops 50.
     assert result.nodes["api"].effective_rps == 50.0
     assert result.nodes["api"].dropped_requests == 50

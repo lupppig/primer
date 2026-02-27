@@ -3,7 +3,7 @@ from app.simulation.engine import Simulator
 from app.simulation.schemas import SimGraph, SimNode, SimEdge, NodeType, SplitterConfig, ResilienceConfig
 
 def test_adaptive_routing_failover():
-    # 1. Setup: Splitter -> [Service A (50%), Service B (50%)]
+    # Setup: Splitter -> [Service A (50%), Service B (50%)]
     # Service A will be unhealthy
     nodes = {
         "splitter": SimNode(
@@ -36,10 +36,10 @@ def test_adaptive_routing_failover():
     sim.actors["service_a"].cb_state = "OPEN"
     sim.actors["service_a"].metrics.status = "tripped"
 
-    # 2. Process Tick
+    # Process Tick
     result = sim.process_tick(graph, incoming_rps=100.0)
 
-    # 3. Verify Failover
+    # Verify Failover
     # Service A is unhealthy, so 100% should go to Service B
     assert result.nodes["service_a"].incoming_rps == 0.0
     assert result.nodes["service_b"].incoming_rps == 100.0

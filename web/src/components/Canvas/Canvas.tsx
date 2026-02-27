@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactFlow, {
 	Background,
 	BackgroundVariant,
@@ -37,6 +37,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 });
 
 export default function Canvas() {
+	const [searchParams] = useSearchParams();
 	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool, undo, redo } = useStore();
 	const { currentDesign, saveDesign, renameDesign } = useDesignStore();
 	const { user, setAuthModalOpen } = useAuthStore();
@@ -47,10 +48,22 @@ export default function Canvas() {
 	const [isLoadProfileOpen, setIsLoadProfileOpen] = useState(false);
 	const [rfInstance, setRfInstance] = useState<any>(null);
 
+	const isExport = searchParams.get('export') === 'true';
+
 	const bottleneckLabels = nodes
 		.filter(n => (simulation.activeBottlenecks || []).includes(n.id))
 		.map(n => n.data.label || 'Unknown Node')
 		.join(', ') || 'System';
+
+	// Force fitView when in export mode after a delay for hydration
+	useEffect(() => {
+		if (rfInstance && isExport) {
+			const timer = setTimeout(() => {
+				rfInstance.fitView({ padding: 0.2, duration: 0 });
+			}, 300);
+			return () => clearTimeout(timer);
+		}
+	}, [rfInstance, isExport]);
 
 	// --- Auto Save Logic ---
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -340,8 +353,8 @@ export default function Canvas() {
 															<input
 																type="number"
 																className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
-																value={simulation.loadProfile.baseRps}
-																onChange={e => useStore.getState().updateLoadProfile({ baseRps: parseInt(e.target.value) || 0 })}
+																value={simulation.loadProfile.baseRps === 0 ? '' : simulation.loadProfile.baseRps}
+																onChange={e => useStore.getState().updateLoadProfile({ baseRps: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
 																min={0}
 															/>
 														</div>
@@ -356,8 +369,8 @@ export default function Canvas() {
 																	<input
 																		type="number"
 																		className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
-																		value={simulation.loadProfile.peakRps}
-																		onChange={e => useStore.getState().updateLoadProfile({ peakRps: parseInt(e.target.value) || 0 })}
+																		value={simulation.loadProfile.peakRps === 0 ? '' : simulation.loadProfile.peakRps}
+																		onChange={e => useStore.getState().updateLoadProfile({ peakRps: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
 																		min={0}
 																	/>
 																</div>
@@ -369,8 +382,8 @@ export default function Canvas() {
 																	<input
 																		type="number"
 																		className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
-																		value={simulation.loadProfile.durationSeconds}
-																		onChange={e => useStore.getState().updateLoadProfile({ durationSeconds: parseInt(e.target.value) || 0 })}
+																		value={simulation.loadProfile.durationSeconds === 0 ? '' : simulation.loadProfile.durationSeconds}
+																		onChange={e => useStore.getState().updateLoadProfile({ durationSeconds: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
 																		min={1}
 																	/>
 																</div>

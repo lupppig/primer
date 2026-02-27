@@ -1,6 +1,39 @@
+import uuid
+from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
+
+class ExportFormat(str, Enum):
+    PNG = "PNG"
+    PDF = "PDF"
+    SVG = "SVG"
+    JPG = "JPG"
+    GIF = "GIF"
+
+class ExportStatus(str, Enum):
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class ExportRequest(BaseModel):
+    design_id: uuid.UUID
+    format: ExportFormat
+    options: Optional[Dict] = None
+
+class ExportResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: uuid.UUID
+    design_id: uuid.UUID
+    format: ExportFormat
+    status: ExportStatus
+    file_url: Optional[str] = None
+    error_message: Optional[str] = None
+    retry_count: int = 0
+    expires_at: datetime
+    created_at: datetime
 
 class Region(str, Enum):
     US_EAST = "us-east-1"
@@ -150,6 +183,7 @@ class NodeMetrics(BaseModel):
 class GraphMetrics(BaseModel):
     total_throughput: float = 0.0
     max_latency: float = 0.0
+    burn_rate: float = 0.0
     bottleneck_nodes: List[str] = []
 
 class SimulationTickResult(BaseModel):

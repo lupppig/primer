@@ -18,7 +18,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'"
         return response
 
 class CSRFMiddleware(BaseHTTPMiddleware):
@@ -33,7 +33,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             
             allowed_origin = settings.FRONTEND_URL
             
-            # 1. Check Origin header (modern browsers)
+            # Check Origin header (modern browsers)
             if origin and origin != allowed_origin:
                 from starlette.responses import JSONResponse
                 return JSONResponse(
@@ -41,7 +41,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     content={"detail": "CSRF verification failed: Origin mismatch."}
                 )
             
-            # 2. Check Referer header (fallback)
+            # Check Referer header (fallback)
             if not origin and referer and not referer.startswith(allowed_origin):
                 from starlette.responses import JSONResponse
                 return JSONResponse(
@@ -49,7 +49,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     content={"detail": "CSRF verification failed: Invalid referer."}
                 )
                 
-            # 3. If neither origin nor referer is present on a mutating request, block it
+            # If neither origin nor referer is present on a mutating request, block it
             if not origin and not referer:
                 from starlette.responses import JSONResponse
                 return JSONResponse(

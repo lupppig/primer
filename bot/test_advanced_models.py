@@ -3,7 +3,7 @@ from app.simulation.models.compute import ComputeActor
 from app.simulation.schemas import SimNode, CacheConfig, DatabaseConfig
 
 def test_cache_hit_load_reduction():
-    # 1. Setup node with 90% hit rate
+    # Setup node with 90% hit rate
     cache_config = CacheConfig(hit_rate=0.9, hit_latency_ms=1.0)
     node = SimNode(
         id="test-cache",
@@ -29,7 +29,7 @@ def test_cache_hit_load_reduction():
     assert 2.5 < actor.metrics.latency < 3.5
 
 def test_database_read_replica_scaling():
-    # 2. Setup node with read replicas
+    # Setup node with read replicas
     db_config = DatabaseConfig(read_replicas=4) # 4 replicas
     node = SimNode(
         id="test-db",

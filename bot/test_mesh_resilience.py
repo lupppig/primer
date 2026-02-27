@@ -3,7 +3,7 @@ from app.simulation.engine import Simulator
 from app.simulation.schemas import SimGraph, SimNode, SimEdge, NodeType, MeshConfig
 
 def test_timeout_logic():
-    # 1. Setup Node with 50ms base latency and 10ms timeout
+    # Setup Node with 50ms base latency and 10ms timeout
     nodes = {
         "api": SimNode(
             id="api", 
@@ -16,17 +16,17 @@ def test_timeout_logic():
     graph = SimGraph(nodes=nodes, edges=[])
     sim = Simulator("test-timeout")
 
-    # 2. Process Tick
+    # Process Tick
     result = sim.process_tick(graph, incoming_rps=100.0)
 
-    # 3. Verify Timeout behavior
+    # Verify Timeout behavior
     # Latency (50ms) > Timeout (10ms) -> All requests should be dropped
     assert result.nodes["api"].effective_rps == 0.0
     assert result.nodes["api"].dropped_requests == 100
     assert result.nodes["api"].failure_reason == "Request Timeout"
 
 def test_retry_budget_capping():
-    # 1. Setup Node with 20% retry budget and high retries
+    # Setup Node with 20% retry budget and high retries
     # Capacity is 50 RPS, Incoming is 100 RPS.
     # Dropped = 50. 
     # Requested Retries = 50 * 3 (retries) = 150 RPS.
@@ -42,10 +42,10 @@ def test_retry_budget_capping():
     graph = SimGraph(nodes=nodes, edges=[])
     sim = Simulator("test-retry-budget")
 
-    # 2. Process Tick
+    # Process Tick
     result = sim.process_tick(graph, incoming_rps=100.0)
 
-    # 3. Verify Budget Capping
+    # Verify Budget Capping
     assert result.nodes["api"].dropped_requests == 50
     assert result.nodes["api"].retry_rps == 20.0 # Capped at 20% of 100
     assert result.nodes["api"].budget_exhausted is True

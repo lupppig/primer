@@ -16,7 +16,7 @@ class ComputeActor(ComponentActor):
             self._update_circuit_breaker(has_failures=True)
             return self.metrics
 
-        # 1. Specialized Capacity & Load Calculation
+        # Specialized Capacity & Load Calculation
         load_to_process = self.metrics.incoming_rps
         total_capacity = self.node.capacity_rps * self.node.replicas
         
@@ -37,11 +37,11 @@ class ComputeActor(ComponentActor):
             total_capacity += read_cap
             self.metrics.read_latency = self.node.base_latency_ms + d_config.replication_lag_ms
 
-        # 2. Standard Processing Logic with modified load/capacity
+        # Standard Processing Logic with modified load/capacity
         # Calculate component utilization ratio
         self.metrics.utilization = (load_to_process / total_capacity) if total_capacity > 0 else (1.0 if load_to_process > 0 else 0.0)
         
-        # 2b. Storage I/O Modeling
+        # Storage I/O Modeling
         if self.node.storage_config:
             s_config = self.node.storage_config
             # IOPS is proportional to RPS
@@ -77,7 +77,7 @@ class ComputeActor(ComponentActor):
                 self.metrics.dropped_requests += int(self.metrics.effective_rps - self.node.rate_limit_rps)
                 self.metrics.effective_rps = self.node.rate_limit_rps
 
-        # 3. Latency Calculation
+        # Latency Calculation
         if self.metrics.utilization <= 1.0:
             calc_latency = self.node.base_latency_ms / max(1.0 - self.metrics.utilization, 0.001)
             
@@ -100,7 +100,7 @@ class ComputeActor(ComponentActor):
             self.metrics.failure_reason = "Capacity Saturation"
             
         #  Update Circuit Breaker State for next tick
-        # I consider it a "failure" if there are dropped requests
+        # We consider it a "failure" if there are dropped requests
         self._update_circuit_breaker(has_failures=(self.metrics.dropped_requests > 0))
         
         #  Update Autoscaling Logic
@@ -112,7 +112,7 @@ class ComputeActor(ComponentActor):
         #  Update Service Mesh Service
         self._update_mesh_logic()
         
-        # 4. Final Geodistribution Latency Application
+        # Final Geodistribution Latency Application
         if self.metrics.incoming_rps > 0:
             avg_net_latency = self.net_latency_accumulator / self.metrics.incoming_rps
             self.metrics.network_latency = avg_net_latency

@@ -137,7 +137,7 @@ class Simulator:
             return SimulationTickResult(
                 time=self.current_time,
                 nodes={},
-                graph_metrics=GraphMetrics(total_throughput=0.0, max_latency=0.0, bottleneck_nodes=[])
+                graph_metrics=GraphMetrics(total_throughput=0.0, max_latency=0.0, burn_rate=0.0, bottleneck_nodes=[])
             )
 
         self._sync_actors(graph)
@@ -160,16 +160,21 @@ class Simulator:
             
         max_latency = 0.0
         total_throughput = 0.0
+        burn_rate = 0.0
         bottlenecks = []
         
         for node_id in sorted_nodes:
             actor = self.actors[node_id]
             metrics = actor.process_tick()
             
+            # Ensure costs are updated for all component types
+            actor._update_costs()
+            burn_rate += actor.metrics.tick_cost
+            
             if metrics.bottleneck:
                 bottlenecks.append(node_id)
             
-            # 1b. Dead Letter Queue (DLQ) Routing
+            # Dead Letter Queue (DLQ) Routing
             if metrics.dropped_requests > 0:
                 # Find if this node has an outgoing edge to a DLQ node
                 dlq_targets = [target_id for target_id, _ in adj_list[node_id] if graph.nodes[target_id].type == 'dlq']
@@ -230,7 +235,7 @@ class Simulator:
                 if not edge:
                     continue
                 
-                # 1. Protocol Whitelisting Enforcement (Ingress & Egress)
+                # Protocol Whitelisting Enforcement (Ingress & Egress)
                 source_node = actor.node
                 target_node = graph.nodes[target_id]
                 
@@ -242,7 +247,7 @@ class Simulator:
                 if target_node.protocol_whitelist and edge.protocol not in target_node.protocol_whitelist:
                     continue
 
-                # 2. Chaos: Packet Loss & Adaptive Skipping
+                # Chaos: Packet Loss & Adaptive Skipping
                 # Deterministically reduce traffic based on loss pct
                 loss_factor = 1.0 - (edge.packet_loss_pct / 100.0)
                 
@@ -254,7 +259,7 @@ class Simulator:
 
                 child_incoming = metrics.effective_rps * effective_pct * loss_factor
                 
-                # 3. Chaos: Jitter & Network Latency
+                # Chaos: Jitter & Network Latency
                 source_region = actor.node.region
                 target_region = self.actors[target_id].node.region
                 
@@ -272,6 +277,7 @@ class Simulator:
         gm = GraphMetrics(
             total_throughput=total_throughput,
             max_latency=max_latency if max_latency != 9999.9 else 9999.9,
+            burn_rate=burn_rate,
             bottleneck_nodes=bottlenecks
         )
         

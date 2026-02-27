@@ -34,6 +34,7 @@ export type SimulationState = {
 	chaosNodes: string[];
 	simSpeed: number; // 1 to 10
 	totalSimulationCost: number;
+	burnRate: number; // Global tick cost
 	viewMode: 'canvas' | 'dashboard';
 };
 
@@ -138,6 +139,7 @@ export const useStore = create<AppState>((set, get) => ({
 		chaosNodes: [],
 		simSpeed: 1.0,
 		totalSimulationCost: 0,
+		burnRate: 0,
 		viewMode: 'canvas',
 	},
 	past: [],
@@ -321,6 +323,16 @@ export const useStore = create<AppState>((set, get) => ({
 				graph
 			};
 
+			// Reset costs for a clean run
+			set((state) => ({
+				simulation: {
+					...state.simulation,
+					totalSimulationCost: 0,
+					burnRate: 0,
+					history: {}
+				}
+			}));
+
 			ws = new WebSocket('ws://localhost:8000/api/v1/simulation/ws');
 
 			ws.onopen = () => {
@@ -384,7 +396,8 @@ export const useStore = create<AppState>((set, get) => ({
 								activeBottlenecks: data.graph_metrics?.bottleneck_nodes || [],
 								nodeMetrics: data.nodes || {},
 								history: newHistory,
-								totalSimulationCost: state.simulation.totalSimulationCost + tickCostSum
+								totalSimulationCost: state.simulation.totalSimulationCost + tickCostSum,
+								burnRate: data.graph_metrics?.burn_rate || tickCostSum
 							}
 						};
 					});

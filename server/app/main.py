@@ -14,6 +14,8 @@ from app.auth.router import router as auth_router
 from app.canvas.router import router as canvas_router
 from app.simulation.router import router as simulation_router
 from app.simulation.worker import start_simulation_worker
+from app.simulation.export_worker import start_export_worker
+from app.simulation.cleanup_job import start_cleanup_job
 
 # Setup centralized logging config
 setup_logging()
@@ -28,6 +30,8 @@ async def lifespan(app: FastAPI):
     
     # Start background workers
     app.state.simulation_worker_task = asyncio.create_task(start_simulation_worker())
+    app.state.export_worker_task = asyncio.create_task(start_export_worker())
+    app.state.cleanup_job_task = asyncio.create_task(start_cleanup_job())
     
     yield
     
@@ -35,6 +39,10 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Primer Backend Services...")
     if hasattr(app.state, "simulation_worker_task"):
         app.state.simulation_worker_task.cancel()
+    if hasattr(app.state, "export_worker_task"):
+        app.state.export_worker_task.cancel()
+    if hasattr(app.state, "cleanup_job_task"):
+        app.state.cleanup_job_task.cancel()
     await redis_client.disconnect()
     await nats_client.disconnect()
 

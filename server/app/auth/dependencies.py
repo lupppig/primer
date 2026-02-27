@@ -9,6 +9,15 @@ async def get_current_user_id(request: Request) -> uuid.UUID:
     """
     Dependency to extract user_id from the HTTP-Only JWT Cookie.
     """
+    # Bypassing for internal capture worker if a system token is provided
+    system_token = request.headers.get("X-System-Token")
+    if system_token and system_token == settings.SECRET_KEY: # Using SECRET_KEY as a simple shared secret for now
+        # We need to know which user this is for. 
+        # For simplicity, we'll allow a sub header or just use the system context
+        user_id_override = request.headers.get("X-User-ID")
+        if user_id_override:
+            return uuid.UUID(user_id_override)
+
     token = request.cookies.get("access_token")
     if not token:
         raise UnauthorizedException("Not authenticated")

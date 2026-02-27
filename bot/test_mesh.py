@@ -3,7 +3,7 @@ from app.simulation.models.compute import ComputeActor
 from app.simulation.schemas import SimNode, MeshConfig
 
 def test_mesh_timeout():
-    # 1. Setup node with low timeout
+    # Setup node with low timeout
     mesh_config = MeshConfig(timeout_ms=10.0) # 10ms timeout
     node = SimNode(
         id="test-timeout",
@@ -25,7 +25,7 @@ def test_mesh_timeout():
     assert actor.metrics.failure_reason == "Request Timeout"
 
 def test_mesh_retries_and_storm():
-    # 2. Setup node with retries
+    # Setup node with retries
     mesh_config = MeshConfig(
         retries=3,
         retry_backoff_ms=5.0

@@ -22,6 +22,7 @@ export default function CanvasPage() {
 	const viewMode = useStore(state => state.simulation.viewMode);
 
 	const designId = searchParams.get('id');
+	const isExport = searchParams.get('export') === 'true';
 
 	const hasHydrated = useRef(false);
 
@@ -60,7 +61,7 @@ export default function CanvasPage() {
 			{/* Main Canvas Area */}
 			<main className="flex-1 relative min-w-0 h-full">
 				<ReactFlowProvider>
-					<FloatingToolbar />
+					{!isExport && <FloatingToolbar />}
 					{viewMode === 'dashboard' ? (
 						<HistoricalDashboard />
 					) : (
@@ -70,55 +71,58 @@ export default function CanvasPage() {
 			</main>
 
 			{/* Right Properties Panel (Placeholder for MVP) */}
-			<motion.aside
-				initial={false}
-				animate={{ width: isRightOpen ? 320 : 48 }}
-				transition={{ duration: 0.3, ease: 'easeInOut' }}
-				className="flex-shrink-0 border-l border-[var(--color-border)] bg-[var(--color-panel)] h-full relative flex flex-col z-10 overflow-hidden"
-			>
-				{/* Toggle Button */}
-				<button
-					onClick={() => setIsRightOpen(!isRightOpen)}
-					className="absolute left-2 top-4 z-50 p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-white hover:bg-[#1a1c23] transition-colors"
-					title={isRightOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+			{!isExport && (
+				<motion.aside
+					initial={false}
+					animate={{ width: isRightOpen ? 320 : 48 }}
+					transition={{ duration: 0.3, ease: 'easeInOut' }}
+					className="flex-shrink-0 border-l border-[var(--color-border)] bg-[var(--color-panel)] h-full relative flex-col z-10 overflow-hidden"
+					style={{ display: 'flex' }}
 				>
-					{isRightOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
-				</button>
+					{/* Toggle Button */}
+					<button
+						onClick={() => setIsRightOpen(!isRightOpen)}
+						className="absolute left-2 top-4 z-50 p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-white hover:bg-[#1a1c23] transition-colors"
+						title={isRightOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+					>
+						{isRightOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
+					</button>
 
-				<div
-					className={`w-80 h-full flex flex-col transition-opacity duration-200 ${isRightOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-				>
-					<div className="p-4 border-b border-[var(--color-border)] pl-10 flex items-center justify-between">
-						<div>
-							<h3 className="font-heading font-semibold text-white capitalize">{activeTab}</h3>
-							<p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-								{activeTab === 'properties' ? 'Component configuration' : 'Past simulation runs'}
-							</p>
+					<div
+						className={`w-80 h-full flex flex-col transition-opacity duration-200 ${isRightOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+					>
+						<div className="p-4 border-b border-[var(--color-border)] pl-10 flex items-center justify-between">
+							<div>
+								<h3 className="font-heading font-semibold text-white capitalize">{activeTab}</h3>
+								<p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+									{activeTab === 'properties' ? 'Component configuration' : 'Past simulation runs'}
+								</p>
+							</div>
+
+							<div className="flex bg-[#0f111a] rounded-lg p-1 border border-[var(--color-border)]/50">
+								<button
+									onClick={() => setActiveTab('properties')}
+									className={`p-1.5 rounded-md transition-all ${activeTab === 'properties' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+									title="Properties"
+								>
+									<Settings2 className="w-4 h-4" />
+								</button>
+								<button
+									onClick={() => setActiveTab('history')}
+									className={`p-1.5 rounded-md transition-all ${activeTab === 'history' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+									title="Simulation History"
+								>
+									<History className="w-4 h-4" />
+								</button>
+							</div>
 						</div>
 
-						<div className="flex bg-[#0f111a] rounded-lg p-1 border border-[var(--color-border)]/50">
-							<button
-								onClick={() => setActiveTab('properties')}
-								className={`p-1.5 rounded-md transition-all ${activeTab === 'properties' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-								title="Properties"
-							>
-								<Settings2 className="w-4 h-4" />
-							</button>
-							<button
-								onClick={() => setActiveTab('history')}
-								className={`p-1.5 rounded-md transition-all ${activeTab === 'history' ? 'bg-[#3caff6] text-white' : 'text-[var(--color-text-muted)] hover:text-white'}`}
-								title="Simulation History"
-							>
-								<History className="w-4 h-4" />
-							</button>
+						<div className="flex-1 overflow-y-auto custom-scrollbar">
+							{activeTab === 'properties' ? <PropertiesPanel /> : <HistoryPanel />}
 						</div>
 					</div>
-
-					<div className="flex-1 overflow-y-auto custom-scrollbar">
-						{activeTab === 'properties' ? <PropertiesPanel /> : <HistoryPanel />}
-					</div>
-				</div>
-			</motion.aside>
+				</motion.aside>
+			)}
 		</div>
 	);
 }

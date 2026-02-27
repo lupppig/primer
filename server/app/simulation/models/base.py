@@ -133,16 +133,33 @@ class ComponentActor(ABC):
     def _update_costs(self):
         config = self.node.cost_config
         if not config:
-            self.metrics.tick_cost = 0.0
-            return
+            # Default sensible costs by node type
+            default_costs = {
+                "api": (20.0, 0.5),      # Server instance
+                "db": (150.0, 2.0),      # High compute/storage
+                "cache": (30.0, 0.1),    # Memory intensive
+                "queue": (40.0, 0.4),    # IO heavy
+                "cdn": (0.0, 0.05),      # Mostly bandwidth
+                "firewall": (50.0, 1.0), # Compute/network
+                "lb": (20.0, 0.1),       # Network intensive
+                "external": (0.0, 5.0),  # 3rd party API pricing
+                "docker": (15.0, 0.3),   # Container
+                "k8s": (100.0, 1.0),     # Clustered workloads
+                "gateway": (30.0, 0.5),  # API Gateway
+                "storage": (10.0, 0.1),  # Generic storage
+                "dlq": (5.0, 0.1),       # Dead letter queue
+                "splitter": (5.0, 0.1),  # Traffic splitter
+            }
+            base_m, var_m = default_costs.get(self.node.type, (10.0, 0.5))
+            from app.simulation.schemas import CostConfig
+            config = CostConfig(monthly_base_cost_per_replica=base_m, cost_per_million_requests=var_m)
 
-        # Monthly seconds = 30 * 24 * 3600 = 2,592,000
         # Tick cost (base) = (monthly_base_cost_per_replica * replicas) / 2592000
         base_cost_tick = (config.monthly_base_cost_per_replica * self.node.replicas) / 2592000
-        
-        # Variable cost: (effective_rps * cost_per_million_requests) / 1,000,000
-        # Since RPS is per second and 1 tick = 1 second
-        var_cost_tick = (self.metrics.effective_rps * config.cost_per_million_requests) / 1000000
+        # Usage cost
+        # cost is per million requests
+        reqs_in_tick = self.metrics.effective_rps
+        var_cost_tick = (reqs_in_tick * config.cost_per_million_requests) / 1000000
         
         self.metrics.tick_cost = base_cost_tick + var_cost_tick
 
@@ -153,7 +170,7 @@ class ComponentActor(ABC):
             self.metrics.budget_exhausted = False
             return
 
-        # 1. Timeout Logic: Drop requests if latency exceeds timeout
+        # Timeout Logic: Drop requests if latency exceeds timeout
         if config.timeout_ms > 0 and self.metrics.latency > config.timeout_ms:
             # All effective RPS are now failures due to timeout
             timed_out_rps = self.metrics.effective_rps
@@ -163,7 +180,7 @@ class ComponentActor(ABC):
             self.metrics.status = "degraded"
             self.metrics.failure_reason = "Request Timeout"
 
-        # 2. Retry Logic: Amplify failed requests with Budgeting
+        # Retry Logic: Amplify failed requests with Budgeting
         self.metrics.retry_rps = 0.0
         self.metrics.budget_exhausted = False
         

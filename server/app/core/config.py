@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
+    # MinIO Settings
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minio_admin"
+    MINIO_SECRET_KEY: str = "minio_password"
+    MINIO_SECURE: bool = False
+    MINIO_BUCKET_NAME: str = "primer-exports"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
