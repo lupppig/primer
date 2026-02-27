@@ -34,13 +34,15 @@ Instead of writing thousands of lines of code just to discover your database wil
 Primer handles an immense amount of mathematical computation without freezing the browser. To achieve this, the application is split into two distinct halves: a blazing-fast Frontend for visualization and a heavy-duty Backend cluster for raw calculation.
 
 ### The Mathematics of Simulation
-When you click "Start Simulation," Primer isn't just drawing pretty animations. The Backend engine runs a **Topological Sort** algorithm to understand the exact order in which data flows through your system (e.g., Load Balancer $\rightarrow$ Web Server $\rightarrow$ Database). 
+When you click "Start Simulation," Primer isn't just drawing animations. The application executes a sophisticated performance model based on Little's Law and queuing theory.
 
-For every virtual "second" (tick) of the simulation, the engine calculates:
-1.  **Incoming Traffic:** The total volume of users arriving.
-2.  **Effective Flow:** How much traffic a component can actually handle based on its *Capacity Limit*.
-3.  **Latency:** Base delay + queuing delay (the traffic jam effect when incoming traffic exceeds capacity).
-4.  **Drop Rate:** Requests that simply fail because the system is overwhelmed.
+The Engine relies on a **Topological Sort** algorithm to determine the critical path of the network (e.g., Load Balancer $\rightarrow$ Web Server $\rightarrow$ Database). In a single virtual "tick" (1 second), the engine passes numbers representing active incoming HTTPS requests from parent to child components based on connection weights.
+
+Every component then performs four critical calculations:
+1.  **Effective Flow vs. Drop Rate:** If incoming requests exceed a node's *Capacity Limit*, it fulfills what it can. The overflow is logged as dropped requests, acting as an instant visualization of a cascading system failure.
+2.  **Latency:** Calculated dynamically as `Base Latency + Queuing Delay`. As utilization approaches 100%, the queuing delay spikes exponentially, simulating the "traffic jam" effect of overloaded CPU threads.
+3.  **Dynamic Scaling:** If configured, nodes will check their utilization limits and spawn (or terminate) Replicas to absorb the shifting traffic.
+4.  **Pricing (Burn Rate):** A cost function is run per component. It divides the node's fixed monthly hardware cost into seconds, and adds a variable usage cost based on the traffic it successfully processed. The dashboard sums this globally, providing a real-time "$/hr" burn rate indicator.
 
 ### Handling Heavy Computation
 Calculating millions of virtual requests across dozens of connected components in real-time requires serious horsepower. This is solved by creating a **distributed worker pool**. Instead of one worker trying to do everything, Primer delegates the heavy math to multiple "Worker" programs running in the background.
@@ -63,30 +65,70 @@ Carefully chose technologies that excel at speed, reliability, and real-time com
 
 ### High-Level Event Flow
 
-Primer is architected as an event-driven, distributed system:
+Primer is architected as an event-driven, decoupled system to keep the user interface lightning fast even during massive recalculations.
 
-1.  **Ingress & Visualization (Web Tier):** The React/Zustand frontend maintains the diagram state. When a simulation starts, it establishes an asynchronous WebSocket connection to the backend.
-2.  **API Gateway & Router (FastAPI):** Receives HTTP requests for CRUD operations (saving architectures) and WebSocket connections for live simulation streams.
-3.  **Command Broker (NATS JetStream):** 
-    - The router pushes simulation jobs to a NATS subject. 
-    - This decouples the API server from the heavy computational engine, ensuring identical throughput regardless of simulation load.
-4.  **Simulation Engine (Python Workers):**
-    - Headless background workers listen to NATS queues. 
+```mermaid
+graph TD
+    %% Define styles
+    classDef frontend fill:#3caff6,stroke:#fff,stroke-width:2px,color:#fff
+    classDef api fill:#10b981,stroke:#fff,stroke-width:2px,color:#fff
+    classDef broker fill:#f59e0b,stroke:#fff,stroke-width:2px,color:#fff
+    classDef worker fill:#8b5cf6,stroke:#fff,stroke-width:2px,color:#fff
+    classDef db fill:#64748b,stroke:#fff,stroke-width:2px,color:#fff
+
+    subgraph User Interface
+        React["React & Zustand<br>(Frontend)"]:::frontend
+    end
+
+    subgraph Core Services
+        FastAPI["FastAPI App<br>(API & WebSocket router)"]:::api
+        Workers["Python Workers<br>(Simulation Engine)"]:::worker
+    end
+
+    subgraph Infrastructure
+        NATS[("NATS JetStream<br>(Message Broker)")]:::broker
+        Redis[("Redis<br>(State & Cache)")]:::db
+        Postgres[("PostgreSQL<br>(Storage)")]:::db
+    end
+
+    %% Connections
+    React <-->|WebSocket connection<br>Live Telemetry| FastAPI
+    FastAPI -->|1. Publish Simulation Job| NATS
+    NATS -->|2. Pull Jobs| Workers
+    Workers -->|3. Publish Results| NATS
+    NATS -->|4. Push Telemetry Stream| FastAPI
+    
+    FastAPI -.- Postgres
+    FastAPI -.- Redis
+    Workers -.- Postgres
+    Workers -.- Redis
+```
+
+### Understanding Our Infrastructure
+
+Why split the application apart? When you click "Start Simulation", we can't afford to block the `FastAPI` web server from handling other user requests while it calculates mathematics for the next 10 seconds. We break the tasks down using dedicated tools:
+
+*   **API Server (FastAPI):** The entry point. It receives HTTP requests for CRUD operations (saving architecture designs) and holds open WebSocket connections to stream live charts back to the browser.
+*   **Command Broker (NATS JetStream):** 
+    - The API Router immediately pushes your heavy simulation job onto a NATS queue.
+    - NATS acts as a buffer. It securely holds the jobs until a background worker is ready. 
+    - This decouples the API server from the computational engine, ensuring identical web throughput regardless of how massive your simulation is.
+*   **Simulation Engine (Python Workers):**
+    - Headless background workers listen to NATS queues constantly. 
     - They pull jobs, execute the Topological Sort to calculate component capacity, routing flow, and latency per tick. 
-    - Results are published back to a reply queue.
-5.  **State & Persistence:**
-    - **Redis:** Manages fast ephemeral data like session locks and intermediate states.
-    - **Postgres:** Permanently stores system designs, component topologies, and historic run metrics using atomic operations to prevent read-modify-write race conditions.
-6.  **Egress:** The API Router consumes the calculated results from NATS and streams the telemetry directly down the open WebSocket connection to the browser for live animation.
+    - Once finished, they publish the mathematical results back to a reply queue in NATS, which the API Server instantly reads and forwards to your browser.
+*   **State & Persistence:**
+    - **Redis:** Manages extremely fast, ephemeral data. We use it to store active WebSocket connection states and session locks so workers and the API know who is doing what.
+    - **Postgres:** The reliable vault. It permanently stores system designs, component topologies, and historic run metrics using atomic operations to guarantee data integrity across multiple architectural runs.
 
-### CQRS Inspired Execution
+### Modular Architecture Execution
 
-The system is engineered using a **CQRS (Command-Query Responsibility Segregation)** inspired pattern. 
+This system is engineered using a robust **Modular** pattern to ensure responsibilities stay separated:
 
 1.  **The User Builds:** You design a system on the frontend.
-2.  **The WebSocket Streams:** A continuous connection is opened between your browser and the server.
-3.  **The Engine Computes:** The `Simulator` calculates metrics, applies retry logic, and determines failure cascades.
-4.  **Live Updates:** Results are streamed back through the WebSocket instantly, painting realistic traffic animations on your screen.
+2.  **The WebSocket Streams:** A continuous connection is opened between the browser and the FastAPI server.
+3.  **The Engine Computes:** The worker reads from NATS, calculates metrics, applies retry logic, and determines failure cascades.
+4.  **Live Updates:** Results are handed back through the Message Broker instantly, painting realistic traffic animations on the screen.
 5.  **Post-Analysis:** Background routines save the finalized run data into Postgres for deep-dive historical review.
 
 ---
