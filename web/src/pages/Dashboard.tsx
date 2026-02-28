@@ -9,11 +9,14 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useDesignStore } from '../store/useDesignStore';
 import { MiniCanvasPreview } from '../components/MiniCanvasPreview';
 import { TICKETING_SYSTEM_TEMPLATE } from '../utils/templates/ticketingSystem';
+import { SettingsModal } from '../components/Sidebar/SettingsModal';
+import { useState } from 'react';
 
 export default function Dashboard() {
 	const navigate = useNavigate();
 	const { user, logout } = useAuthStore();
 	const { designs, fetchDesigns, createDesign, deleteDesign, isLoading } = useDesignStore();
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 	useEffect(() => {
 		if (!user) {
@@ -78,10 +81,10 @@ export default function Dashboard() {
 				</nav>
 
 				<div className="p-4 border-t border-[var(--color-border)] flex flex-col gap-2">
-					<a href="#" className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-[var(--color-text-muted)] hover:text-white hover:bg-white/5 transition-colors">
+					<button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-[var(--color-text-muted)] hover:text-white hover:bg-white/5 transition-colors w-full text-left">
 						<Settings className="w-4 h-4" />
 						Settings
-					</a>
+					</button>
 					<button
 						onClick={() => logout()}
 						className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors w-full text-left"
@@ -96,9 +99,19 @@ export default function Dashboard() {
 			<main className="flex-1 overflow-y-auto">
 				<div className="max-w-7xl mx-auto p-8 space-y-8">
 					<div className="flex justify-between items-center">
-						<div>
-							<h1 className="text-3xl font-heading font-bold text-white tracking-tight">Welcome back, {user?.username || 'Architect'}</h1>
-							<p className="text-[var(--color-text-muted)] mt-1">Pick up where you left off or start a new system design.</p>
+						<div className="flex items-center gap-4">
+							{user?.avatar_url && (
+								<img
+									src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${user.avatar_url}`}
+									alt="Avatar"
+									className="w-12 h-12 rounded-full object-cover border-2 border-[var(--color-border)]"
+									crossOrigin="anonymous"
+								/>
+							)}
+							<div>
+								<h1 className="text-3xl font-heading font-bold text-white tracking-tight">Welcome back, {user?.username || 'Architect'}</h1>
+								<p className="text-[var(--color-text-muted)] mt-1">Pick up where you left off or start a new system design.</p>
+							</div>
 						</div>
 						<Button onClick={() => handleCreateDesign()} className="gap-2 group overflow-hidden relative" isLoading={isLoading}>
 							<motion.div
@@ -226,6 +239,8 @@ export default function Dashboard() {
 					</footer>
 				</div>
 			</main>
+
+			<SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 		</div>
 	);
 }

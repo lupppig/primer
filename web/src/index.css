@@ -15,7 +15,73 @@
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+/* Force dark mode background globally */@import "tailwindcss";
+
+@theme {
+	--color-canvas: #090a0f; /* Deep space dark canvas */
+	--color-panel: #11131a;  /* Slightly lighter for panels */
+	--color-border: #1f2330; /* Subtle borders */
+	--color-primary: #3caff6;
+	--color-primary-hover: #298dce;
+	--color-accent: #3caff6;
+	--color-danger: #ff3344; /* Neon alert red */
+	--color-text-main: #e2e8f0;
+	--color-text-muted: #64748b;
+	--font-sans: "Inter", system-ui, sans-serif;
+	--font-heading: "Space Grotesk", system-ui, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 /* Force dark mode background globally */
+body {
+	@apply bg-[var(--color-canvas)] text-[var(--color-text-main)] font-sans antialiased overflow-hidden;
+}
+
+/* React Flow custom dark styles */
+.react-flow__background {
+	background-color: var(--color-canvas);
+}
+
+.react-flow__controls-button {
+	background-color: var(--color-panel) !important;
+	border-color: var(--color-border) !important;
+	color: var(--color-text-main) !important;
+	transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.react-flow__controls-button:hover {
+	background-color: #262a33 !important;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	@apply bg-[#374151] rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	@apply bg-[#4b5563];
+}
+@keyframes flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-flow-dash {
+  animation: flow 1s linear infinite reverse;
+}
+
 body {
 	@apply bg-[var(--color-canvas)] text-[var(--color-text-main)] font-sans antialiased overflow-hidden;
 }

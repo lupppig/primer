@@ -40,7 +40,7 @@ export default function Canvas() {
 	const [searchParams] = useSearchParams();
 	const { nodes, edges, onNodesChange, onEdgesChange, onConnect, simulation, toggleSimulation, activeTool, setActiveTool, undo, redo } = useStore();
 	const { currentDesign, saveDesign, renameDesign } = useDesignStore();
-	const { user, setAuthModalOpen } = useAuthStore();
+	const { user } = useAuthStore();
 	const navigate = useNavigate();
 	const [isSaving, setIsSaving] = useState(false);
 	const [tempName, setTempName] = useState('');
@@ -454,7 +454,7 @@ export default function Canvas() {
 										disabled={isSaving}
 										onClick={async () => {
 											if (!user) {
-												setAuthModalOpen(true);
+												navigate('/login');
 												return;
 											}
 											if (currentDesign) {

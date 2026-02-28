@@ -3,8 +3,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.users.models import User
-from app.users.schemas import UserCreate
-from app.core.security import get_password_hash
+from app.users.schemas import UserCreateOAuth
 
 class UserRepository:
     def __init__(self, session: AsyncSession):
@@ -25,15 +24,20 @@ class UserRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def create(self, user_in: UserCreate) -> User:
+    async def get_by_provider_id(self, provider: str, provider_id: str) -> Optional[User]:
+        stmt = select(User).where(User.provider == provider, User.provider_id == provider_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create_oauth(self, user_in: UserCreateOAuth) -> User:
         db_user = User(
             email=user_in.email,
             username=user_in.username,
-            hashed_password=get_password_hash(user_in.password),
-            provider="local"
+            provider=user_in.provider,
+            provider_id=user_in.provider_id,
+            avatar_url=user_in.avatar_url
         )
         self.session.add(db_user)
-        # We don't commit here; it's handled by the get_db dependency.
         await self.session.flush()
         await self.session.refresh(db_user)
         return db_user

@@ -7,16 +7,15 @@ class UserBase(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
 
-class UserCreate(UserBase):
-    password: str = Field(..., min_length=8)
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+class UserCreateOAuth(UserBase):
+    provider_id: str
+    provider: str = "github"
+    avatar_url: Optional[str] = None
 
 class UserResponse(UserBase):
     id: uuid.UUID
-    provider: Optional[str] = "local"
+    provider: Optional[str] = "github"
+    avatar_url: Optional[str] = None
     is_active: bool
     created_at: datetime
     

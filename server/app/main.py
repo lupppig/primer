@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 import logging
 
 from app.core.config import settings
@@ -11,6 +12,7 @@ from app.core.middleware import SecurityHeadersMiddleware, CSRFMiddleware, RateL
 from app.core.redis import redis_client
 from app.core.nats import nats_client
 from app.auth.router import router as auth_router
+from app.users.router import router as users_router
 from app.canvas.router import router as canvas_router
 from app.simulation.router import router as simulation_router
 from app.simulation.worker import start_simulation_worker
@@ -58,10 +60,12 @@ setup_exception_handlers(app)
 
 # Include Routers
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(users_router, prefix=settings.API_V1_STR)
 app.include_router(canvas_router, prefix=settings.API_V1_STR)
 app.include_router(simulation_router, prefix=settings.API_V1_STR)
 
 # Middlewares (Order matters)
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS, # Centralized CORS

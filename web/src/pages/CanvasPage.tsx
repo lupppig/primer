@@ -10,7 +10,6 @@ import { PanelRightClose, PanelRight, Settings2, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useDesignStore } from '../store/useDesignStore';
 import { useStore } from '../store/useStore';
-import AuthModal from '../components/Auth/AuthModal';
 
 export default function CanvasPage() {
 	const [isRightOpen, setIsRightOpen] = useState(true);
@@ -55,8 +54,6 @@ export default function CanvasPage() {
 					<div className="w-8 h-8 rounded-full border-4 border-[var(--color-primary)] border-t-transparent animate-spin" />
 				</div>
 			)}
-
-			<AuthModal />
 
 			{/* Main Canvas Area */}
 			<main className="flex-1 relative min-w-0 h-full">
