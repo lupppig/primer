@@ -1,4 +1,5 @@
 import uuid
+from sqlalchemy import select, and_
 from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,11 +28,30 @@ async def get_design(
 ):
     repo = DesignRepository(db)
     design = await repo.get_by_id(design_id)
-    if not design or design.user_id != user_id:
-        # Prevent existence leakage by returning 404 for unauthorized access
+    if not design:
         from app.core.exceptions import NotFoundException
         raise NotFoundException("Design not found")
-    return design
+    
+    # Allow access if: owner, collaborator, or public
+    if design.user_id == user_id:
+        return design
+    if design.is_public:
+        return design
+    
+    from app.canvas.models import DesignCollaborator
+    collab = (await db.execute(
+        select(DesignCollaborator).where(
+            and_(
+                DesignCollaborator.design_id == design_id,
+                DesignCollaborator.user_id == user_id,
+            )
+        )
+    )).scalar_one_or_none()
+    if collab:
+        return design
+    
+    from app.core.exceptions import NotFoundException
+    raise NotFoundException("Design not found")
 
 @router.put("/design/{design_id}", response_model=DesignResponse)
 async def update_design(

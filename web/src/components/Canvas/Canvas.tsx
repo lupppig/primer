@@ -12,9 +12,10 @@ import 'reactflow/dist/style.css';
 import { useStore } from '../../store/useStore';
 import { useDesignStore } from '../../store/useDesignStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home, DollarSign } from 'lucide-react';
+import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home, DollarSign, Share2 } from 'lucide-react';
 import { Button } from '../Common/Button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ShareModal } from '../Toolbar/ShareModal';
 import TechNode from './TechNode';
 import TrafficEdge from './TrafficEdge';
 import TextNode from './TextNode';
@@ -43,6 +44,7 @@ export default function Canvas() {
 	const { user } = useAuthStore();
 	const navigate = useNavigate();
 	const [isSaving, setIsSaving] = useState(false);
+	const [isShareOpen, setIsShareOpen] = useState(false);
 	const [tempName, setTempName] = useState('');
 	const [isEditingName, setIsEditingName] = useState(false);
 	const [isLoadProfileOpen, setIsLoadProfileOpen] = useState(false);
@@ -470,6 +472,15 @@ export default function Canvas() {
 										{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
 										{!user ? 'Save to Cloud' : 'Save'}
 									</Button>
+									<Button
+										size="sm"
+										variant="outline"
+										className="h-8 gap-2 border-[var(--color-border)]/50"
+										onClick={() => setIsShareOpen(true)}
+										disabled={!currentDesign}
+									>
+										<Share2 className="w-4 h-4" /> Share
+									</Button>
 								</div>
 							</div>
 						</Panel>
@@ -500,6 +511,14 @@ export default function Canvas() {
 					</ReactFlow>
 				</div>
 			</ReactFlowProvider>
+			{currentDesign && (
+				<ShareModal
+					isOpen={isShareOpen}
+					onClose={() => setIsShareOpen(false)}
+					designId={currentDesign.id}
+					designName={currentDesign.name}
+				/>
+			)}
 		</div>
 	);
 }

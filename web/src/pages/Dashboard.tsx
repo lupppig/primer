@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Box, Home, FolderOpen, Users, LayoutTemplate, Settings, Plus, ArrowRight, LogOut, Trash2 } from 'lucide-react';
 import { Button } from '../components/Common/Button';
+import { NotificationBell } from '../components/Dashboard/NotificationBell';
 import { Card, CardDescription, CardHeader, CardTitle } from '../components/Common/Card';
 import { MOCK_TEMPLATES } from '../utils/mockData';
 import { useNavigate } from 'react-router-dom';
@@ -113,16 +114,19 @@ export default function Dashboard() {
 								<p className="text-[var(--color-text-muted)] mt-1">Pick up where you left off or start a new system design.</p>
 							</div>
 						</div>
-						<Button onClick={() => handleCreateDesign()} className="gap-2 group overflow-hidden relative" isLoading={isLoading}>
-							<motion.div
-								className="absolute inset-0 bg-white/20"
-								initial={{ x: '-100%' }}
-								whileHover={{ x: '100%' }}
-								transition={{ duration: 0.5, ease: 'easeInOut' }}
-							/>
-							<Plus className="w-4 h-4" />
-							Create New Design
-						</Button>
+						<div className="flex items-center gap-3">
+							<NotificationBell />
+							<Button onClick={() => handleCreateDesign()} className="gap-2 group overflow-hidden relative" isLoading={isLoading}>
+								<motion.div
+									className="absolute inset-0 bg-white/20"
+									initial={{ x: '-100%' }}
+									whileHover={{ x: '100%' }}
+									transition={{ duration: 0.5, ease: 'easeInOut' }}
+								/>
+								<Plus className="w-4 h-4" />
+								Create New Design
+							</Button>
+						</div>
 					</div>
 
 					<section>
