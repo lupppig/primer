@@ -67,13 +67,13 @@ export default function CanvasPage() {
 				</ReactFlowProvider>
 			</main>
 
-			{/* Right Properties Panel (Placeholder for MVP) */}
+			{/* Right Properties Panel (Floating Over Canvas) */}
 			{!isExport && (
 				<motion.aside
 					initial={false}
 					animate={{ width: isRightOpen ? 320 : 48 }}
 					transition={{ duration: 0.3, ease: 'easeInOut' }}
-					className="flex-shrink-0 border-l border-[var(--color-border)] bg-[var(--color-panel)] h-full relative flex-col z-10 overflow-hidden"
+					className="absolute right-4 top-4 bottom-4 border border-[var(--color-border)] rounded-2xl bg-[var(--color-panel)]/95 shadow-2xl backdrop-blur-xl flex-col z-20 overflow-hidden"
 					style={{ display: 'flex' }}
 				>
 					{/* Toggle Button */}

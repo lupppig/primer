@@ -274,9 +274,9 @@ export default function Canvas() {
 							className="!bg-[var(--color-panel)] !border-[var(--color-border)]"
 						/>
 
-						<Panel position="top-center" className="w-full pointer-events-none mt-4">
+						<Panel position="bottom-center" className="w-full pointer-events-none mb-6 z-10 transition-transform">
 							<div className="flex justify-center w-full">
-								<div className="flex items-center gap-2 bg-[var(--color-panel)] border border-[var(--color-border)] p-1.5 rounded-xl shadow-lg pointer-events-auto">
+								<div className="flex items-center gap-2 bg-[var(--color-panel)]/95 backdrop-blur-xl border border-[var(--color-border)] p-2 px-3 rounded-2xl shadow-2xl pointer-events-auto">
 									<Button
 										variant="ghost"
 										size="icon"
