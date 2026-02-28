@@ -1,6 +1,6 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/layers.svg" alt="Primer Logo" width="100"/>
-  <h1>Primer: High-Performance Architecture Simulator</h1>
+  <h1>Primer: High-Performance System Design Simulator</h1>
   <p><strong>Visually Design, Test, and Break Distributed Systems Before You Build Them.</strong></p>
 </div>
 
