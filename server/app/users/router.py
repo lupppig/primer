@@ -7,8 +7,10 @@ from app.core.exceptions import ValidationException, UnauthorizedException
 from app.auth.dependencies import get_current_user_id
 from app.users.repository import UserRepository
 from app.users.schemas import UserResponse
+import logging
 
 router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 @router.post("/me/avatar", response_model=UserResponse)
 async def upload_avatar(
@@ -20,22 +22,26 @@ async def upload_avatar(
     
     # Basic validation
     if not file.content_type.startswith("image/"):
+        logger.warning(f"Avatar upload failed: Invalid content type '{file.content_type}' for user_id={user_id}")
         raise ValidationException("File must be an image type (PNG, JPEG, etc).")
         
     # Read file size securely
     content = await file.read()
     if len(content) > 5 * 1024 * 1024: # 5MB limit
+        logger.warning(f"Avatar upload failed: File size exceeded limit for user_id={user_id}")
         raise ValidationException("Avatar file size must be under 5MB.")
         
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
+        logger.error(f"Avatar upload failed: User {user_id} not found in database")
         raise UnauthorizedException("User not found.")
         
     # Upload to MinIO
     extension = file.filename.split('.')[-1] if '.' in file.filename else 'png'
     object_name = f"avatars/{user_id}.{extension}"
     
+    logger.info(f"Processing avatar upload for user_id={user_id}, size={len(content)} bytes")
     await storage_service.upload_file(content, object_name, file.content_type)
     
     # Store the presigned URL permanently (or dynamically construct it later)
@@ -52,8 +58,6 @@ async def upload_avatar(
     user.avatar_url = download_url
     db.add(user)
     await db.commit()
-    await db.refresh(user)
-    
     return user
 
 @router.get("/avatar/avatars/{filename}")
@@ -66,4 +70,5 @@ async def get_avatar(filename: str):
         return Response(content=data["body"], media_type=data["content_type"])
     except Exception as e:
         from fastapi import HTTPException
+        logger.warning(f"Avatar fetch failed: Object '{object_name}' not found or inaccessible")
         raise HTTPException(status_code=404, detail="Avatar not found")

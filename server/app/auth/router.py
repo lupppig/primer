@@ -12,12 +12,14 @@ from app.core.exceptions import UnauthorizedException
 from app.core.security import create_access_token, create_refresh_token
 from app.core.config import settings
 from app.core.redis import redis_client
+import logging
 from app.auth.dependencies import get_current_user_id
 from app.users.schemas import UserResponse, UserCreateOAuth
 from app.users.repository import UserRepository
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 # Configure Authlib OAuth
 oauth_config = Config(environ={
@@ -68,8 +70,7 @@ async def oauth_github_callback(request: Request, db: AsyncSession = Depends(get
     try:
         token = await oauth.github.authorize_access_token(request)
     except Exception as e:
-        import traceback
-        logger.error(f"OAuth Error: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"GitHub OAuth Authorization Failed: {str(e)}", exc_info=True)
         raise UnauthorizedException(f"Failed to authenticate with GitHub: {str(e)}")
         
     resp = await oauth.github.get('user', token=token)
@@ -85,6 +86,7 @@ async def oauth_github_callback(request: Request, db: AsyncSession = Depends(get
             email = primary_email.get("email")
             
     if not email:
+        logger.warning(f"GitHub OAuth succeeded but no email was found for provider_id={profile.get('id')}")
         raise UnauthorizedException("Could not retrieve email from GitHub")
 
     provider_id = str(profile.get("id"))
@@ -106,6 +108,7 @@ async def oauth_github_callback(request: Request, db: AsyncSession = Depends(get
             user.avatar_url = avatar_url
             db.add(user)
             await db.flush()
+            logger.info(f"Linked existing account (User ID: {user.id}) to GitHub provider")
         else:
             # Handle username collisions
             base_username = username
@@ -121,6 +124,7 @@ async def oauth_github_callback(request: Request, db: AsyncSession = Depends(get
                 avatar_url=avatar_url
             )
             user = await repo.create_oauth(user_in)
+            logger.info(f"Created new user account via GitHub (User ID: {user.id})")
 
     # Issue our own JWTs
     access_token = create_access_token(subject=user.id)
@@ -128,6 +132,7 @@ async def oauth_github_callback(request: Request, db: AsyncSession = Depends(get
     
     response = RedirectResponse(url=settings.FRONTEND_URL)
     set_auth_cookies(response, access_token, refresh_token)
+    logger.info(f"Session created successfully for user_id={user.id}")
     return response
 
 @router.post("/logout")
@@ -145,11 +150,13 @@ async def logout(request: Request, response: Response):
             
             if jti and exp:
                 await redis_client.block_token(jti, exp)
-        except JWTError:
-            pass
+                logger.info(f"Token (jti={jti}) explicitly revoked during logout")
+        except JWTError as e:
+            logger.warning(f"Invalid token provided during logout: {e}")
             
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
+    logger.info("User logged out successfully")
     return {"message": "Logged out successfully"}
 
 @router.get("/me", response_model=UserResponse)

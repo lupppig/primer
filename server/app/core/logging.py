@@ -1,6 +1,17 @@
 import logging
 import logging.handlers
 import os
+import contextvars
+
+# Context variable to hold the trace_id for current execution context
+trace_id_ctx_var = contextvars.ContextVar("trace_id", default="-")
+
+class TraceFilter(logging.Filter):
+    """Injects the current trace_id into the log record."""
+    def filter(self, record):
+        record.trace_id = trace_id_ctx_var.get()
+        return True
+import os
 
 def setup_logging():
     """Sets up robust file logging with rotation for the backend."""
@@ -21,12 +32,16 @@ def setup_logging():
     console_handler = logging.StreamHandler()
 
     formatter = logging.Formatter(
-        '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s',
+        '[%(asctime)s] %(levelname)s [Trace: %(trace_id)s] [%(name)s:%(lineno)d] %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
     handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
+    
+    trace_filter = TraceFilter()
+    handler.addFilter(trace_filter)
+    console_handler.addFilter(trace_filter)
 
     # Root logger
     root_logger = logging.getLogger()

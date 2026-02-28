@@ -1,0 +1,92 @@
+services:
+  web:
+    build:
+      context: ../web
+      dockerfile: ../infra/Dockerfile.frontend
+    container_name: primer_web
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: always
+
+  api:
+    build:
+      context: ../server
+      dockerfile: ../infra/Dockerfile.backend
+    container_name: primer_api
+    env_file:
+      - ../server/.env.production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: always
+
+  db:
+    image: postgres:15-alpine
+    container_name: primer_db
+    env_file:
+      - ../server/.env.production
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-primer_user} -d ${POSTGRES_DB:-primer_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: primer_redis
+    volumes:
+      - redis_data_prod:/data
+    command: redis-server --save 60 1 --loglevel warning
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: primer_nats
+    command: -js
+    volumes:
+      - nats_data_prod:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: primer_minio
+    command: server /data --console-address ":9001"
+    env_file:
+      - ../server/.env.production
+    volumes:
+      - minio_data_prod:/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+  nats_data_prod:
+  minio_data_prod:
