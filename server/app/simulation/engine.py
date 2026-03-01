@@ -1,6 +1,16 @@
 from typing import Dict, List, Optional
 from app.simulation.schemas import SimGraph, NodeMetrics, GraphMetrics, SimulationTickResult, LoadProfile, Region
 
+from app.simulation.models.base import ComponentActor
+from app.simulation.models.compute import ComputeActor
+from app.simulation.models.queue import QueueActor
+from app.simulation.models.cdn import CDNActor
+from app.simulation.models.firewall import FirewallActor
+from app.simulation.models.splitter import TrafficSplitterActor
+from app.simulation.models.dlq import DeadLetterQueueActor
+from app.simulation.models.external_service import ExternalServiceActor
+import random
+
 # Network Latency in ms between regions
 # Note: This is an initial set of regions and can be expanded as needed for more granular global modeling.
 LATENCY_MATRIX = {
@@ -29,16 +39,6 @@ LATENCY_MATRIX = {
         Region.AP_SOUTHEAST: 0.0
     }
 }
-
-from app.simulation.models.base import ComponentActor
-from app.simulation.models.compute import ComputeActor
-from app.simulation.models.queue import QueueActor
-from app.simulation.models.cdn import CDNActor
-from app.simulation.models.firewall import FirewallActor
-from app.simulation.models.splitter import TrafficSplitterActor
-from app.simulation.models.dlq import DeadLetterQueueActor
-from app.simulation.models.external_service import ExternalServiceActor
-import random
 
 class Simulator:
     """

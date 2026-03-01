@@ -12,8 +12,9 @@ import 'reactflow/dist/style.css';
 import { useStore } from '../../store/useStore';
 import { useDesignStore } from '../../store/useDesignStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home, DollarSign, Share2 } from 'lucide-react';
 import { Button } from '../Common/Button';
+import { Input } from '../Common/Input';
+import { Activity, Play, Settings, Save, MessageSquare, Loader2, Home, DollarSign, Share2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShareModal } from '../Toolbar/ShareModal';
 import TechNode from './TechNode';
@@ -47,7 +48,7 @@ export default function Canvas() {
 	const [isShareOpen, setIsShareOpen] = useState(false);
 	const [tempName, setTempName] = useState('');
 	const [isEditingName, setIsEditingName] = useState(false);
-	const [isLoadProfileOpen, setIsLoadProfileOpen] = useState(false);
+	const [isTrafficPatternOpen, setIsTrafficPatternOpen] = useState(false);
 	const [rfInstance, setRfInstance] = useState<any>(null);
 
 	const isExport = searchParams.get('export') === 'true';
@@ -313,15 +314,15 @@ export default function Canvas() {
 									<div className="w-px h-4 bg-[var(--color-border)]" />
 
 									<div className="flex items-center gap-4 px-4 border-r border-[var(--color-border)] py-1">
-										{/* Load Profile Control */}
+										{/* Traffic Pattern Control */}
 										<div className="relative flex flex-col gap-1 w-32">
-											<div className="flex justify-between items-center cursor-pointer" onClick={() => setIsLoadProfileOpen(!isLoadProfileOpen)}>
-												<span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Load Profile</span>
+											<div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTrafficPatternOpen(!isTrafficPatternOpen)}>
+												<span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Traffic Pattern</span>
 												<span className="text-[10px] font-mono font-bold text-blue-400 hover:text-blue-300">
 													{simulation.loadProfile.type.toUpperCase()}
 												</span>
 											</div>
-											<div className="flex items-center cursor-pointer" onClick={() => setIsLoadProfileOpen(!isLoadProfileOpen)}>
+											<div className="flex items-center cursor-pointer" onClick={() => setIsTrafficPatternOpen(!isTrafficPatternOpen)}>
 												<span className="text-xs text-white px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded min-w-full text-center border border-[var(--color-border)] transition-colors truncate">
 													{simulation.loadProfile.type === 'flat'
 														? `${numberFormatter.format(simulation.loadProfile.baseRps)} RPS`
@@ -330,31 +331,34 @@ export default function Canvas() {
 											</div>
 
 											<AnimatePresence>
-												{isLoadProfileOpen && (
+												{isTrafficPatternOpen && (
 													<motion.div
-														initial={{ opacity: 0, y: 10 }}
-														animate={{ opacity: 1, y: 0 }}
-														exit={{ opacity: 0, y: 10 }}
-														className="absolute top-full mt-3 left-0 w-64 bg-[#0f111a] border border-[var(--color-border)] p-4 rounded-xl shadow-2xl z-50 flex flex-col gap-4"
+														initial={{ opacity: 0, y: 10, scale: 0.95 }}
+														animate={{ opacity: 1, y: 0, scale: 1 }}
+														exit={{ opacity: 0, y: 10, scale: 0.95 }}
+														className="absolute bottom-full mb-3 left-0 w-64 bg-[#13151a]/95 border border-[var(--color-border)] p-4 rounded-xl shadow-2xl z-50 flex flex-col gap-4 backdrop-blur-xl"
 													>
 														<div>
-															<h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Pattern Curve</h4>
-															<select
-																className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
-																value={simulation.loadProfile.type}
-																onChange={(e) => useStore.getState().updateLoadProfile({ type: e.target.value as any })}
-															>
-																<option value="flat">Static / Flat</option>
-																<option value="spike">Sudden Spike</option>
-																<option value="step">Step Function</option>
-															</select>
+															<h4 className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-3">Pattern Curve</h4>
+															<div className="relative">
+																<select
+																	className="w-full bg-[#0f1115] border border-[var(--color-border)] rounded-lg px-3 h-10 text-sm text-white focus:outline-none focus:border-[#3caff6] transition-all appearance-none cursor-pointer"
+																	value={simulation.loadProfile.type}
+																	onChange={(e) => useStore.getState().updateLoadProfile({ type: e.target.value as any })}
+																>
+																	<option value="flat">Static / Flat</option>
+																	<option value="spike">Sudden Spike</option>
+																	<option value="step">Step Function</option>
+																</select>
+																<ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" />
+															</div>
 														</div>
 
-														<div className="flex flex-col gap-1.5">
-															<label className="text-xs font-medium text-[var(--color-text-muted)]">Base RPS</label>
-															<input
+														<div className="flex flex-col gap-2">
+															<label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">Base RPS</label>
+															<Input
 																type="number"
-																className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																className="h-9 bg-[#0f1115] border-[var(--color-border)]"
 																value={simulation.loadProfile.baseRps === 0 ? '' : simulation.loadProfile.baseRps}
 																onChange={e => useStore.getState().updateLoadProfile({ baseRps: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
 																min={0}
@@ -363,27 +367,27 @@ export default function Canvas() {
 
 														{simulation.loadProfile.type !== 'flat' && (
 															<>
-																<div className="flex flex-col gap-1.5 pt-2 border-t border-[var(--color-border)]">
-																	<label className="text-xs font-medium text-[var(--color-text-muted)] flex justify-between">
+																<div className="flex flex-col gap-2 pt-2 border-t border-[var(--color-border)]/50">
+																	<label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest flex justify-between">
 																		Peak RPS
-																		<span className="opacity-50">Max Load</span>
+																		<span className="opacity-50 lowercase font-medium">max load</span>
 																	</label>
-																	<input
+																	<Input
 																		type="number"
-																		className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																		className="h-9 bg-[#0f1115] border-[var(--color-border)]"
 																		value={simulation.loadProfile.peakRps === 0 ? '' : simulation.loadProfile.peakRps}
 																		onChange={e => useStore.getState().updateLoadProfile({ peakRps: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
 																		min={0}
 																	/>
 																</div>
-																<div className="flex flex-col gap-1.5">
-																	<label className="text-xs font-medium text-[var(--color-text-muted)] flex justify-between">
+																<div className="flex flex-col gap-2">
+																	<label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest flex justify-between">
 																		Duration
-																		<span className="opacity-50">Seconds</span>
+																		<span className="opacity-50 lowercase font-medium">seconds</span>
 																	</label>
-																	<input
+																	<Input
 																		type="number"
-																		className="bg-black/50 border border-[var(--color-border)] text-sm text-white rounded p-1.5 w-full outline-none focus:border-blue-500"
+																		className="h-9 bg-[#0f1115] border-[var(--color-border)]"
 																		value={simulation.loadProfile.durationSeconds === 0 ? '' : simulation.loadProfile.durationSeconds}
 																		onChange={e => useStore.getState().updateLoadProfile({ durationSeconds: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
 																		min={1}
@@ -391,7 +395,14 @@ export default function Canvas() {
 																</div>
 															</>
 														)}
-														<Button size="sm" onClick={() => setIsLoadProfileOpen(false)} className="mt-1">Close Config</Button>
+														<Button
+															variant="default"
+															size="sm"
+															onClick={() => setIsTrafficPatternOpen(false)}
+															className="mt-1 font-medium shadow-lg shadow-[var(--color-primary)]/10"
+														>
+															Apply Pattern
+														</Button>
 													</motion.div>
 												)}
 											</AnimatePresence>

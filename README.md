@@ -29,20 +29,46 @@ Instead of writing thousands of lines of code just to discover your database wil
 
 ---
 
-## How It Works Under the Hood
+## How the Simulation Engine Works
 
-Primer handles an immense amount of mathematical computation without freezing the browser. To achieve this, the application is split into two distinct halves: a blazing-fast Frontend for visualization and a heavy-duty Backend cluster for raw calculation.
+Primer uses a sophisticated discrete-event simulation engine to model how data flows through your system. Think of it as a virtual laboratory where you can stress-test your architecture without spending a dime on real servers.
 
-### The Mathematics of Simulation
-When you click "Start Simulation," Primer isn't just drawing animations. The application executes a sophisticated performance model based on Little's Law and queuing theory.
+### 1. Traffic Generation: The "Traffic Pattern"
+Every simulation starts with a **Traffic Pattern**. This defines how many users are hitting your system:
+*   **Base RPS (Normal Load):** The steady number of requests per second your system usually handles.
+*   **Peak RPS (Burst Load):** A sudden surge in traffic (e.g., a Black Friday sale or a viral post).
+*   **Duration:** How long the burst of traffic lasts before returning to normal.
+*   **Pattern Curves:** You can choose between **Static** (flat line), **Spike** (sudden up and down), or **Step** (permanent increase) patterns.
 
-The Engine relies on a **Topological Sort** algorithm to determine the critical path of the network (e.g., Load Balancer $\rightarrow$ Web Server $\rightarrow$ Database). In a single virtual "tick" (1 second), the engine passes numbers representing active incoming HTTPS requests from parent to child components based on connection weights.
+### 2. How Components Handle Traffic
+When traffic hits a component (like an API or a Database), the engine calculates three main things:
 
-Every component then performs four critical calculations:
-1.  **Effective Flow vs. Drop Rate:** If incoming requests exceed a node's *Capacity Limit*, it fulfills what it can. The overflow is logged as dropped requests, acting as an instant visualization of a cascading system failure.
-2.  **Latency:** Calculated dynamically as `Base Latency + Queuing Delay`. As utilization approaches 100%, the queuing delay spikes exponentially, simulating the "traffic jam" effect of overloaded CPU threads.
-3.  **Dynamic Scaling:** If configured, nodes will check their utilization limits and spawn (or terminate) Replicas to absorb the shifting traffic.
-4.  **Pricing (Burn Rate):** A cost function is run per component. It divides the node's fixed monthly hardware cost into seconds, and adds a variable usage cost based on the traffic it successfully processed. The dashboard sums this globally, providing a real-time "$/hr" burn rate indicator.
+#### **A. Capacity & Utilization (The "Busyness")**
+Each component has a **Base Capacity** (how many requests a single instance can handle). 
+*   **Calculation:** `Total Capacity = Base Capacity × Number of Replicas`.
+*   **Utilization:** If you have 1,000 requests hitting a system that can handle 2,000, your utilization is **50%**. If traffic exceeds 100%, the component is saturated, and requests start getting "dropped" (failing).
+
+#### **B. Latency (The "Wait Time")**
+Requests don't just happen instantly; they take time. 
+*   **Base Latency:** The minimum time a request takes when the system is empty (e.g., 50ms).
+*   **The "Traffic Jam" Effect:** As a component gets busier, it slows down. We use mathematical models (Queuing Theory) to simulate how requests wait in line. Once utilization hits 90%+, latency spikes exponentially—just like a real-world server struggling to keep up.
+
+#### **C. Component-Specific Logic**
+*   **Compute (APIs/Workers):** Standard processing nodes that scale horizontally.
+*   **Caches (Redis/Memcached):** These use **Hit Rates**. If your hit rate is 80%, 80% of requests are handled instantly by the cache, and only 20% put load on your slower database.
+*   **Databases:** We model **Read Replicas** to spread the load and **Replication Lag** to simulate the delay between data being written and becoming available to read.
+*   **Queues (Kafka/SQS):** Act as buffers. If traffic spikes, the queue "absorbs" the blow by storing requests in a buffer. However, if the **Queue Size** limit is reached, it will overflow and start dropping data.
+
+### 3. Resilience & Chaos
+*   **Auto-scaling:** The system monitors utilization. If a component is "too busy" for too long, it automatically adds more **Replicas** (spawns more virtual servers) to handle the load.
+*   **Service Mesh (Retries & Timeouts):** 
+    - **Retries:** If a request fails, the system can try again.
+    - **Timeout:** If a request takes too long (e.g., >500ms), the system gives up to prevent a total lockup.
+    - **Retry Budget:** Prevents "Retry Storms" where failing systems are overwhelmed by millions of repeated requests.
+*   **Multi-Region Delays:** If traffic travels from a user in Asia to a server in the US, the engine automatically adds real-world fiber-optic delay (Latency Matrix).
+*   **Chaos Engineering:** You can inject **Packet Loss** (randomly failing connections) and **Jitter** (unstable connection speeds) to see if your architecture is truly robust.
+
+---
 
 ### Handling Heavy Computation
 Calculating millions of virtual requests across dozens of connected components in real-time requires serious horsepower. This is solved by creating a **distributed worker pool**. Instead of one worker trying to do everything, Primer delegates the heavy math to multiple "Worker" programs running in the background.
