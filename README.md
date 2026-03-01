@@ -77,13 +77,9 @@ Calculating millions of virtual requests across dozens of connected components i
 
 ### The Tech Stack
 
-Carefully chose technologies that excel at speed, reliability, and real-time communication:
-
-*   **FastAPI & Python (Backend):** Powers the core API and the complex mathematical simulation engine. Python is perfect for the heavy data processing required per tick.
-*   **NATS JetStream (Message Broker):** The central nervous system of Primer. When the frontend asks to run a simulation, the API sends a message to NATS. NATS instantly routes this massive job to an available background Worker, ensuring the API itself never slows down or crashes.
-*   **PostgreSQL (Database):** The reliable vault. It permanently stores your architecture designs, run histories, and analytical data with guarantees that nothing gets lost or overwritten (thanks to atomic database operations).
-*   **Redis (In-Memory Data Store):** Used for lightning-fast caching and managing active user sessions. When data is needed *now*, Redis is the answer.
-*   **React & Zustand (Frontend):** The canvas is built using ReactFlow for smooth, interactive diagramming. Zustand manages the incredibly complex "state" of the dashboard (keeping track of thousands of changing numbers per second) without causing the browser to stutter.
+*   **Backend:** FastAPI, Python, NATS JetStream
+*   **Database:** PostgreSQL, Redis
+*   **Frontend:** React, ReactFlow, Zustand
 
 ---
 
