@@ -18,7 +18,8 @@ def test_topological_sort_valid():
     sorted_nodes = Simulator.topological_sort(graph)
     assert sorted_nodes == ["A", "B", "C"]
 
-def test_topological_sort_cycle():
+def test_topological_sort_cycle_graceful():
+    """Cycles should be handled gracefully — nodes in cycles are appended at the end."""
     graph = SimGraph(
         nodes={
             "A": SimNode(id="A", type="api"),
@@ -30,8 +31,10 @@ def test_topological_sort_cycle():
         ]
     )
     
-    with pytest.raises(ValueError, match="Cycle detected"):
-        Simulator.topological_sort(graph)
+    sorted_nodes = Simulator.topological_sort(graph)
+    # Both nodes should be present — cycle doesn't crash
+    assert set(sorted_nodes) == {"A", "B"}
+    assert len(sorted_nodes) == 2
 
 def test_compute_tick_basic_flow():
     sim = Simulator("test")

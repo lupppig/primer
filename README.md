@@ -29,6 +29,34 @@ Instead of writing thousands of lines of code just to discover your database wil
 
 ---
 
+## 🎬 Tutorial Video
+
+We have a step-by-step animated tutorial built with [Remotion](https://remotion.dev) that walks you through building a **Ticket Booking Microservice** from scratch in Primer.
+
+**What you'll learn:**
+1. Creating a new design on the dashboard
+2. Understanding the canvas layout (toolbar, bottom bar, properties panel)
+3. Adding components: Load Balancer, App-Server, Redis, Kafka, PostgreSQL, Stripe
+4. Connecting services with traffic edges (HTTP, gRPC, Kafka)
+5. Configuring component properties (capacity, replicas, cache hit rates)
+6. Setting up traffic patterns (Step Function: 1.5K → 10K RPS)
+7. Running the simulation and reading live metrics
+8. Identifying and fixing bottlenecks with auto-scaling
+9. Analyzing results in the Analytics Dashboard
+10. Saving and exporting your design
+
+### Run the Tutorial Locally
+
+```bash
+cd video
+npm install
+npx remotion studio
+```
+
+Open the Remotion Studio in your browser and hit play to watch the full 2:41 tutorial.
+
+---
+
 ## How the Simulation Engine Works
 
 Primer uses a sophisticated discrete-event simulation engine to model how data flows through your system. Think of it as a virtual laboratory where you can stress-test your architecture without spending a dime on real servers.

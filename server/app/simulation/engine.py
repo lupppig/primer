@@ -55,6 +55,9 @@ class Simulator:
     def topological_sort(graph: SimGraph) -> List[str]:
         """
         Sorts the graph dependencies to ensure nodes are calculated after their parents.
+        Handles cycles gracefully: nodes involved in cycles are appended at the end
+        in a stable order rather than raising an error. This allows users to model
+        feedback loops (e.g. cache miss fallback paths) without breaking the simulation.
         """
         in_degree: Dict[str, int] = {node_id: 0 for node_id in graph.nodes}
         adj_list: Dict[str, List[str]] = {node_id: [] for node_id in graph.nodes}
@@ -76,8 +79,13 @@ class Simulator:
                 in_degree[neighbor] -= 1
                 if in_degree[neighbor] == 0:
                     queue.append(neighbor)
+
+        # If there are remaining nodes, they are part of a cycle.
+        # Instead of crashing, append them in a stable sorted order so the
+        # simulation can still run (traffic will be processed in a best-effort manner).
         if len(sorted_nodes) != len(graph.nodes):
-            raise ValueError("Cycle detected in the system architecture graph.")
+            remaining = sorted(set(graph.nodes.keys()) - set(sorted_nodes))
+            sorted_nodes.extend(remaining)
 
         return sorted_nodes
 
