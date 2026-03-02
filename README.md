@@ -33,6 +33,8 @@ Instead of writing thousands of lines of code just to discover your database wil
 
 We have a step-by-step animated tutorial built with [Remotion](https://remotion.dev) that walks you through building a **Ticket Booking Microservice** from scratch in Primer.
 
+https://github.com/user-attachments/assets/c3cdc715-8e34-4aaf-8228-38730918cd95
+
 **What you'll learn:**
 1. Creating a new design on the dashboard
 2. Understanding the canvas layout (toolbar, bottom bar, properties panel)
