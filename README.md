@@ -31,7 +31,7 @@ Instead of writing thousands of lines of code just to discover your database wil
 
 ## 🎬 See Primer in Action
 
-<video src="image/tutorial.mp4" controls="controls" width="100%"></video>
+https://github.com/lupppig/primer/raw/main/image/tutorial.mp4
 
 ---
 
