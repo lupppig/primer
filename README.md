@@ -31,7 +31,7 @@ Instead of writing thousands of lines of code just to discover your database wil
 
 ## 🎬 See Primer in Action
 
-https://github.com/user-attachments/assets/91e2f52b-41dd-4525-9c45-adfc987c1026
+https://github.com/user-attachments/assets/c3cdc715-8e34-4aaf-8228-38730918cd95
 
 ---
 
