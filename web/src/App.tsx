@@ -1,35 +1,60 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home.tsx';
+import Login from './pages/Login.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+import CanvasPage from './pages/CanvasPage.tsx';
+import { useAuthStore } from './store/useAuthStore';
+import { useThemeStore } from './store/useThemeStore';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+	const checkAuth = useAuthStore(state => state.checkAuth);
+	const isLoading = useAuthStore(state => state.isLoading);
+	const theme = useThemeStore(state => state.theme);
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+	useEffect(() => {
+		checkAuth();
+	}, [checkAuth]);
+
+	useEffect(() => {
+		const root = window.document.documentElement;
+
+		const applyTheme = () => {
+			root.classList.remove('light', 'dark');
+			if (theme === 'system') {
+				const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+				root.classList.add(systemTheme);
+			} else {
+				root.classList.add(theme);
+			}
+		};
+
+		applyTheme();
+
+		if (theme === 'system') {
+			const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+			const handleChange = () => applyTheme();
+			mediaQuery.addEventListener('change', handleChange);
+			return () => mediaQuery.removeEventListener('change', handleChange);
+		}
+	}, [theme]);
+
+	if (isLoading) {
+		return (
+			<div className="h-screen w-full flex items-center justify-center bg-[var(--color-canvas)]">
+				<div className="w-8 h-8 rounded-full border-4 border-[var(--color-primary)] border-t-transparent animate-spin" />
+			</div>
+		);
+	}
+
+	return (
+		<BrowserRouter>
+			<Routes>
+				<Route path="/" element={<Home />} />
+				<Route path="/login" element={<Login />} />
+				<Route path="/dashboard" element={<Dashboard />} />
+				<Route path="/canvas" element={<CanvasPage />} />
+			</Routes>
+		</BrowserRouter>
+	);
 }
-
-export default App

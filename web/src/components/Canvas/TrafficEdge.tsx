@@ -25,12 +25,12 @@ export default function TrafficEdge({
 		targetPosition,
 	});
 
+	const simulation = useStore(state => state.simulation);
+	const updateEdgeProtocol = useStore(state => state.updateEdgeProtocol);
+
 	if (!edgePath) {
 		return null;
 	}
-
-	const simulation = useStore(state => state.simulation);
-	const updateEdgeProtocol = useStore(state => state.updateEdgeProtocol);
 
 	const protocol = data?.protocol || 'HTTP';
 

@@ -39,7 +39,7 @@ export default function HistoricalDashboard() {
 	const aggregatedData = useMemo(() => {
 		const timeMap: Record<number, any> = {};
 
-		Object.entries(history).forEach(([_, ticks]) => {
+		Object.values(history).forEach((ticks: any) => {
 			ticks.forEach((tick: any) => {
 				if (!timeMap[tick.time]) {
 					timeMap[tick.time] = {

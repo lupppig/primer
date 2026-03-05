@@ -30,10 +30,11 @@ export default function TechNode({ id, data, selected }: { id: string, data: any
 	const updateNodeData = useStore(state => state.updateNodeData);
 
 	useEffect(() => {
-		if (!selected) {
+		if (!selected && isEditing) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setIsEditing(false);
 		}
-	}, [selected]);
+	}, [selected, isEditing]);
 
 	useEffect(() => {
 		if (isEditing && inputRef.current) {

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import ReactFlow, { Background } from 'reactflow';
 import 'reactflow/dist/style.css';
 import TechNode from './Canvas/TechNode';

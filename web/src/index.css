@@ -1,45 +1,50 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-	--color-canvas: #090a0f; /* Deep space dark canvas */
-	--color-panel: #11131a;  /* Slightly lighter for panels */
-	--color-border: #1f2330; /* Subtle borders */
+	--color-canvas: var(--bg-canvas);
+	--color-panel: var(--bg-panel);
+	--color-border: var(--border-color);
 	--color-primary: #3caff6;
 	--color-primary-hover: #298dce;
 	--color-accent: #3caff6;
-	--color-danger: #ff3344; /* Neon alert red */
-	--color-text-main: #e2e8f0;
-	--color-text-muted: #64748b;
+	--color-danger: #ff3344;
+	--color-text-main: var(--text-main);
+	--color-text-muted: var(--text-muted);
 	--font-sans: "Inter", system-ui, sans-serif;
 	--font-heading: "Space Grotesk", system-ui, sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-/* Force dark mode background globally */@import "tailwindcss";
-
-@theme {
-	--color-canvas: #090a0f; /* Deep space dark canvas */
-	--color-panel: #11131a;  /* Slightly lighter for panels */
-	--color-border: #1f2330; /* Subtle borders */
-	--color-primary: #3caff6;
-	--color-primary-hover: #298dce;
-	--color-accent: #3caff6;
-	--color-danger: #ff3344; /* Neon alert red */
-	--color-text-main: #e2e8f0;
-	--color-text-muted: #64748b;
-	--font-sans: "Inter", system-ui, sans-serif;
-	--font-heading: "Space Grotesk", system-ui, sans-serif;
-	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+:root {
+	--bg-canvas: #fafafa;
+	--bg-panel: #ffffff;
+	--border-color: #e2e8f0;
+	--text-main: #0f172a;
+	--text-muted: #64748b;
+	--scrollbar-thumb: #cbd5e1;
+	--scrollbar-hover: #94a3b8;
 }
 
-/* Force dark mode background globally */
+.dark {
+	--bg-canvas: #090a0f;
+	--bg-panel: #11131a;
+	--border-color: #1f2330;
+	--text-main: #e2e8f0;
+	--text-muted: #94a3b8;
+	--scrollbar-thumb: #374151;
+	--scrollbar-hover: #4b5563;
+}
+
 body {
-	@apply bg-[var(--color-canvas)] text-[var(--color-text-main)] font-sans antialiased overflow-hidden;
+	@apply bg-[var(--color-canvas)] text-[var(--color-text-main)] font-sans antialiased overflow-hidden transition-colors duration-200;
 }
 
-/* React Flow custom dark styles */
+/* React Flow custom styles */
 .react-flow__background {
 	background-color: var(--color-canvas);
+	transition: background-color 0.2s;
 }
 
 .react-flow__controls-button {
@@ -50,7 +55,7 @@ body {
 }
 
 .react-flow__controls-button:hover {
-	background-color: #262a33 !important;
+	background-color: var(--color-border) !important;
 }
 
 /* Scrollbar styles */
@@ -64,69 +69,25 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-	@apply bg-[#374151] rounded-full;
+	background-color: var(--scrollbar-thumb);
+	border-radius: 9999px;
+	transition: background-color 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	@apply bg-[#4b5563];
+	background-color: var(--scrollbar-hover);
 }
+
 @keyframes flow {
-  from {
-    stroke-dashoffset: 24;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+	from {
+		stroke-dashoffset: 24;
+	}
+
+	to {
+		stroke-dashoffset: 0;
+	}
 }
+
 .animate-flow-dash {
-  animation: flow 1s linear infinite reverse;
-}
-
-body {
-	@apply bg-[var(--color-canvas)] text-[var(--color-text-main)] font-sans antialiased overflow-hidden;
-}
-
-/* React Flow custom dark styles */
-.react-flow__background {
-	background-color: var(--color-canvas);
-}
-
-.react-flow__controls-button {
-	background-color: var(--color-panel) !important;
-	border-color: var(--color-border) !important;
-	color: var(--color-text-main) !important;
-	transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.react-flow__controls-button:hover {
-	background-color: #262a33 !important;
-}
-
-/* Scrollbar styles */
-::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
-}
-
-::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-	@apply bg-[#374151] rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-	@apply bg-[#4b5563];
-}
-@keyframes flow {
-  from {
-    stroke-dashoffset: 24;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-.animate-flow-dash {
-  animation: flow 1s linear infinite reverse;
+	animation: flow 1s linear infinite reverse;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { Input } from '../Common/Input';
 import { Button } from '../Common/Button';
@@ -29,13 +29,10 @@ export default function PropertiesPanel() {
 	const selectedNode = nodes.find(n => n.selected) as Node | undefined;
 	const selectedEdge = edges.find(e => e.selected) as Edge | undefined;
 
-	// Reset to config tab if selection changes
-	const lastSelectedId = typeof window !== 'undefined' ? (window as any)._lastSelectedId : undefined;
-	if (selectedNode?.id !== lastSelectedId || selectedEdge?.id !== lastSelectedId) {
-		if (typeof window !== 'undefined') (window as any)._lastSelectedId = selectedNode?.id || selectedEdge?.id;
-		// We don't want to trigger a re-render loop here, so we only reset if it's different
-		// Actually, standard react pattern is to use useEffect for this.
-	}
+	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setActiveTab('config');
+	}, [selectedNode?.id, selectedEdge?.id]);
 
 	// Helper to update specific data field on the selected node
 	const updateNodeData = (field: string, value: any) => {
